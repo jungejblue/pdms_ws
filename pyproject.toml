@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pdms-ws"
+version = "0.2.0"
+description = "GT-reference PDMS evaluation and localhost visualization for ETRI planning trajectories"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {file = "LICENSE"}
+dependencies = [
+  "numpy>=1.24,<3", "scipy>=1.10,<2", "pandas>=2,<3",
+  "pyarrow>=12", "shapely>=2,<3", "casadi>=3.6,<4",
+  "matplotlib>=3.7", "plotly>=5,<8", "PyYAML>=6,<7"
+]
+
+[project.optional-dependencies]
+viewer = ["viser==1.1.1"]
+torch = ["torch>=2"]
+test = ["pytest>=7"]
+
+[project.scripts]
+pdms = "etri_pdms.cli:main"
+etri-pdms = "etri_pdms.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -1,0 +1,44 @@
+# Local virtual environment
+/pdms/
+.venv/
+venv/
+# Private datasets, predictions and generated evaluations
+/data/
+/datasets/
+/runs/
+/outputs/
+/results/
+*.pkl
+*.pickle
+*.parquet
+*.arrow
+*.npz
+*.npy
+*.pt
+*.pth
+*.ckpt
+*.onnx
+*.bag
+*.db3
+*.zip
+*.tar
+*.tar.gz
+*.mp4
+*.log
+# Build / Python cache
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+# Local settings
+.env
+.env.*
+.vscode/
+.idea/
+*.before_*
+.DS_Store
