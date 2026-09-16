@@ -60,10 +60,10 @@ deactivate
 ```bash
 pdms demo --out runs/demo
 python -m json.tool runs/demo/evaluation/scenario_scores.json
-pdms serve --run runs/demo/evaluation --port 7201
+pdms serve --run runs/demo/evaluation --port 7200
 ```
 
-브라우저: **http://localhost:7201**
+브라우저: **http://localhost:7200**
 
 서버 터미널을 켜 둔 상태로 사용하며 종료는 **Ctrl+C**입니다. 데모는 합성 데이터이고 실제 VAD 성능이 아닙니다. 합성 infos/planning PKL과 parquet를 생성한 뒤 원본 파일을 직접 읽는 평가 경로로 실행합니다.
 
@@ -124,10 +124,10 @@ pdms evaluate \
   --out runs/vad_check \
   --limit 5
 
-pdms serve --run runs/vad_check --port 7201
+pdms serve --run runs/vad_check --port 7200
 ```
 
-브라우저에서 http://localhost:7201 을 열어 GT·예측·객체 위치와 지도 정렬을 확인하세요.
+브라우저에서 http://localhost:7200 을 열어 GT·예측·객체 위치와 지도 정렬을 확인하세요.
 
 ### 전체 prediction 평가
 
@@ -200,10 +200,10 @@ python -m json.tool runs/vad_full/scenario_scores.json
 원격 서버에서 외부 인터페이스로 접속할 때:
 
 ```bash
-pdms serve --run runs/vad_full --host 0.0.0.0 --port 7201
+pdms serve --run runs/vad_full --host 0.0.0.0 --port 7200
 ```
 
-Docker는 `-p 7201:7201` 매핑도 필요합니다. SSH 터널은 [추가 명령](docs/COMMANDS.md)을 참고하세요.
+Docker는 `-p 7200:7200` 매핑도 필요합니다. SSH 터널은 [추가 명령](docs/COMMANDS.md)을 참고하세요.
 
 ## 7. 평가 전 설정 확인
 
