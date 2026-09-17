@@ -48,7 +48,7 @@ def test_coordinate_map_objects_and_coverage(tmp_path):
     assert s['map_quality']=='nuscenes_map_expansion'
     assert ds.input_report['map_files'] and ds.input_report['infos_pkl_required']
     with pytest.raises(ValueError,match='coverage'):ds.sample('s14')
-    with pytest.raises(ValueError,match='coverage'):ds.sample('s0')
+    assert ds.sample('s0')['initial_speed_info']['initial_speed_uses_future']
 
 
 def test_arc_and_interpolation():

@@ -12,6 +12,7 @@ from .geometry import local,box
 from .inputs import digest,load_infos
 from .nuscenes_map import NuScenesMap
 from .cache_coordinates import cache_pose
+from .initial_speed import initial_speed
 
 
 def rotation(q):
@@ -160,8 +161,8 @@ class NuScenesDataset:
                                     'frame':'current_ego_rear_axle','axes':'x_forward_y_left_z_up',
                                     'projection':'cache XYZ -> global XYZ -> current yaw-aligned XY'}
         gt=gt_world.copy();gt[:,:2]=local(gt[:,:2],origin);gt[:,2]-=origin[2]
-        past=interpolate(ts,poses[:,:2],np.array([t0-.1,t0]),cfg.nuscenes_pose_max_gap_s)
-        initial=np.array([0.,0.,0.,np.linalg.norm(past[1]-past[0])/.1])
+        speed,speed_info=initial_speed(t0,ts[0],ts[-1],lambda q:interpolate(ts,poses[:,:2],q,cfg.nuscenes_pose_max_gap_s))
+        initial=np.array([0.,0.,0.,speed])
         object_times=t0+np.arange(40)*.1
         frame_times=np.array([s['timestamp']/1e6 for s in self.scene_samples[name]])
         # Coverage is checked even for samples with no visible external objects.
@@ -194,7 +195,7 @@ class NuScenesDataset:
                     prediction_rotation=rotation(cs['rotation']),dataset='nuscenes',
                     anchor_assumption=self.input_report['vehicle_anchor'],
                     cache_rotation=cache_r,cache_translation=cache_t,evaluation_origin=origin,
-                    coordinate_diagnostics=coordinate_diagnostics)
+                    coordinate_diagnostics=coordinate_diagnostics,initial_speed_info=speed_info)
 
     def transform_prediction(self,pred,sample):
         if self.cfg.nuscenes_prediction_frame=='cache':

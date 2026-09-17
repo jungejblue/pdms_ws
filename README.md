@@ -24,6 +24,13 @@ nuScenes는 기본 IONIQ 5 가상 차량으로 평가합니다. 캐시 rear-axle
 공식 nuScenes/NAVSIM 벤치마크 점수도 아닙니다.
 아래 ETRI 명령은 그대로 사용할 수 있습니다.
 
+## Scene 시작점 및 CPU 병렬 평가
+
+과거 pose가 없는 시작 경계에서는 미래 0.1초 pose로 초기 속도를 구합니다.
+전체 평가에는 `pdms evaluate --out nuscenes_parallel --workers 4`를 사용할 수 있습니다.
+worker는 1~4개, 기본 1개이며 scene별로 병렬 처리합니다.
+[실행 방법과 초기화 정책](docs/PARALLEL_EVALUATION.md)을 참고하세요.
+
 ## 1. 설치
 
 ```bash

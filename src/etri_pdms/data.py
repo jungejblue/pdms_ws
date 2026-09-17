@@ -3,6 +3,7 @@ import json
 import numpy as np
 import pandas as pd
 from .prediction import load_pickle
+from .initial_speed import initial_speed
 from .geometry import local,box,read_map,choose_route
 
 SCALE={'s':1.,'ms':1e-3,'us':1e-6,'ns':1e-9}
@@ -60,9 +61,11 @@ class Dataset:
         t0=float(seconds(info['timestamp'],cfg.info_timestamp_unit));times=t0+np.arange(31)*.1
         poses=resample(data['ego_pose'],times,['x','y','yaw'],cfg,['yaw']); origin=poses[0].copy()
         poses[:,:2]=local(poses[:,:2],origin);poses[:,2]-=origin[2]
-        # Measured initial speed from past/current ego pose; never model first waypoint.
-        past=resample(data['ego_pose'],np.array([t0-.1,t0]),['x','y'],cfg)
-        initial=np.array([0.,0.,0.,np.linalg.norm(past[1]-past[0])/.1])
+        # Pose-based initial speed; forward difference only at the scene start.
+        raw_times=seconds(data['ego_pose']['timestamp'],cfg.raw_timestamp_unit)
+        speed,speed_info=initial_speed(t0,float(raw_times.min()),float(raw_times.max()),
+                                      lambda q:resample(data['ego_pose'],q,['x','y'],cfg),tolerance=1e-5)
+        initial=np.array([0.,0.,0.,speed])
         hd_origin=resample(data['hd_ego_pose'],np.array([t0]),['x','y','yaw'],cfg,['yaw'])[0]
         override,routes=self.extras(name,folder)
         lines,lanes,drivable,intersection,map_quality=read_map(data['hd_map'],hd_origin,cfg,override)
@@ -94,4 +97,4 @@ class Dataset:
                 objects[k].append({'id':str(track),'class':str(g.iloc[0]['class']),'speed':speed,'xy':xy,'yaw':yaw,'polygon':box(*xy,yaw,vals[3]/2,vals[3]/2,vals[4])})
         return dict(token=token,scenario=name,gt=poses,initial=initial,objects=objects,route=route,route_ids=ids,
                     lines=lines,lanes=lanes,drivable=drivable,intersection=intersection,map_quality=map_quality,
-                    route_source='explicit' if explicit else 'gt_evaluation_only',t0=t0)
+                    route_source='explicit' if explicit else 'gt_evaluation_only',t0=t0,initial_speed_info=speed_info)

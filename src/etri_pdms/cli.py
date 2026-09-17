@@ -68,6 +68,7 @@ def main():
     evaluate.add_argument('--data-root',default=None,help='Original ETRI parquet or nuScenes metadata root')
     evaluate.add_argument('--out',required=True);evaluate.add_argument('--config',default=str(workspace_root()/'configs'/'ioniq5_2023.yaml'))
     evaluate.add_argument('--limit',type=int)
+    evaluate.add_argument('--workers',type=int,choices=range(1,5),default=1,help='CPU processes, 1..4; scene-parallel')
     evaluate.add_argument('--tokens',help='One exact sample token per line; use the same list for all models')
     evaluate.add_argument('--visualize',type=int,default=0,help='Optional static HTML/PNG exports; localhost does not require them')
     demo=commands.add_parser('demo',help='Generate synthetic raw/planning PKLs and evaluate them')
@@ -158,7 +159,7 @@ def dispatch(args,parser):
     else:
         if args.limit is not None and args.limit<1:parser.error('--limit must be positive')
         tokens=[s.strip() for s in Path(args.tokens).read_text().splitlines() if s.strip()] if args.tokens else None
-        summary=evaluate(args.pred,args.raw,args.data_root,args.out,evaluation_config(args),args.limit,tokens,args.visualize)
+        summary=evaluate(args.pred,args.raw,args.data_root,args.out,evaluation_config(args),args.limit,tokens,args.visualize,args.workers)
     print(json.dumps(summary,indent=2,ensure_ascii=False))
     return 0 if summary['complete'] else 2
 
