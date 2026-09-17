@@ -58,6 +58,10 @@ def load_collection(source, kind):
                     # Only these fields are consumed by the evaluator.
                     value = {'token': token, 'scene_token': str(entry.get('scene_token', token.rsplit('_', 1)[0])),
                              'timestamp': float(entry['timestamp'])}
+                    # Preserve the coordinate contract and pose instead of silently discarding them.
+                    for key in ('conversion_meta','ego2global_rotation','ego2global_translation',
+                                'map_ego2global_rotation','map_ego2global_translation'):
+                        if key in entry:value[key]=entry[key]
                     if not np.isfinite(value['timestamp']): raise ValueError(f'{file}: nonfinite timestamp')
                     items.append((token, value))
         if not recognized:

@@ -46,6 +46,7 @@ def evaluate(pred_path,infos,root,out,cfg,limit=None,tokens=None,visualize=20):
                 pred=dataset.transform_prediction(pred,sample)
                 row['scene_name']=sample['scene_name']
                 row['anchor_assumption']=sample['anchor_assumption']
+                row['coordinate_diagnostics']=sample['coordinate_diagnostics']
             pred_ref=reference(np.vstack([[0,0],pred]),np.arange(7)*.5)
             gt_ref=reference(sample['gt'][:,:2],np.arange(31)*.1)
             gt_roll=rollout(gt_ref,sample['initial'],cfg);model_roll=rollout(pred_ref,sample['initial'],cfg)
@@ -87,7 +88,7 @@ def evaluate(pred_path,infos,root,out,cfg,limit=None,tokens=None,visualize=20):
     if not summary['complete']: summary['aggregation_warning']='Means use valid rows only; incomplete run is not a benchmark result. All invalid tokens remain in scores.csv.'
     if cfg.dataset=='nuscenes':
         summary['vehicle_anchor']=dataset.input_report['vehicle_anchor']
-        summary['evaluation_assumptions']='Configured virtual vehicle; not physical nuScenes ego footprint. Objects interpolate annotations without extrapolation. Not an official nuScenes benchmark.'
+        summary['evaluation_assumptions']='Configured vehicle dimensions; cache mode uses the declared rear-axle pose, legacy modes use a virtual anchor. Not physical nuScenes vehicle dimensions. Objects interpolate annotations without extrapolation. Not an official nuScenes benchmark.'
     write_json(out/'input_manifest.json', {'planning':planning_report,'infos':dataset.input_report})
     scenario_rows=write_scenario_reports(out,rows)
     summary['scenarios']=len(scenario_rows)

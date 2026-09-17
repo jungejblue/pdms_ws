@@ -40,7 +40,7 @@ class Controller:
 class Config:
     dataset: str = 'etri'
     nuscenes_version: str = 'v1.0-mini'
-    nuscenes_prediction_frame: str = 'lidar'
+    nuscenes_prediction_frame: str = 'cache'
     nuscenes_map_root: str = ''
     nuscenes_pose_max_gap_s: float = 0.16
     nuscenes_annotation_max_gap_s: float = 0.75
@@ -61,7 +61,7 @@ class Config:
     controller: Controller = field(default_factory=Controller)
     def validate(self):
         if self.dataset not in ('etri','nuscenes'): raise ValueError('dataset')
-        if self.nuscenes_prediction_frame not in ('lidar','ego'): raise ValueError('nuscenes_prediction_frame')
+        if self.nuscenes_prediction_frame not in ('cache','lidar','ego'): raise ValueError('nuscenes_prediction_frame')
         if min(self.nuscenes_pose_max_gap_s,self.nuscenes_annotation_max_gap_s)<=0: raise ValueError('nuScenes timestamp gaps')
         if self.dt != .1 or self.horizon_s != 3 or self.prediction_dt != .5:
             raise ValueError('v0.1 contract: dt=.1, horizon=3, prediction_dt=.5')

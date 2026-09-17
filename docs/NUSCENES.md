@@ -113,37 +113,51 @@ pdms evaluate --dataset nuscenes \
   --data-root /data/nuscenes/v1.0-mini \
   --infos-dir /data/nuscenes/v1.0-mini/cache \
   --planning-dir /data/nuscenes/v1.0-mini/result/stage2 \
-  --nuscenes-version v1.0-mini --prediction-frame lidar \
+  --nuscenes-version v1.0-mini --prediction-frame cache \
   --out nuscenes_full
 ```
 
-## 4. 좌표계와 점수의 의미
+## 4. py123d 좌표계 규약 (기본 cache 모드)
 
-- 기본은 공식 VAD converter의 **현재 LIDAR_TOP 좌표축·LiDAR 원점 기준** 미래 경로입니다.
-  0.5초 간격 6개 step displacement를 한 번 누적하고 calibration 회전으로 ego 축으로 변환합니다.
-  LiDAR BEV의 z는 0으로 가정합니다. 이미 누적된 좌표라면 공통 YAML의
-  `representation: relative_positions`로 바꿉니다.
-- 자체 converter가 **ego 원점·x 전방/y 좌측** 경로를 출력하면
-  `--prediction-frame ego` 또는 `export NUSCENES_PREDICTION_FRAME=ego`를 사용합니다.
-  nuScenes에서는 공통 YAML의 `axes` 대신 이 frame 선택과 sensor calibration을 사용합니다.
-- GT는 같은 anchor의 미래 원본 pose에서 구합니다. 센서 원점과 실제 rear axle 사이 오프셋은 복원하지 않습니다.
-  **선택한 LiDAR/ego 원점에 가상 차량 rear axle을 놓는 근사**입니다. 기본 차량은 공통 YAML의 IONIQ 5입니다.
-  실제 nuScenes ego footprint가 아니며 이 가정은 충돌·DAC·추종 점수에 영향을 줍니다.
-- GT·모델에 같은 MPC-CLF와 가상 차량을 적용합니다. NC/DAC/EP/TTC/C 및 PDMS는
-  기존 GT-reference 구현을 사용합니다. 공식 nuScenes 평가 또는 공식 NAVSIM PDMS와 직접 비교하지 마세요.
-- map expansion의 drivable_area/lane/lane_connector/intersection polygon을 사용합니다.
-  `map_mode`는 ETRI 지도용 옵션이며 nuScenes에서는 항상 map expansion이 필요합니다.
-  누락 시 centerline 폭으로 대체하지 않습니다. 결과 `map_quality`는 `nuscenes_map_expansion`입니다.
-- EP route는 미래 GT로 선택한 lane centerline과 공식 connectivity에서 구성합니다.
-  lane change로 연결 불가, 경로 자기교차, 모호한 분기, 짧은 route 등은 invalid가 될 수 있습니다.
-  현재 nuScenes에는 수동 route_ids.json 보정 기능이 없습니다.
-- 객체 annotation(통상 2 Hz)은 위치·크기와 unwrap yaw를 10 Hz로 선형 보간합니다.
-  관측 track의 처음/마지막 바깥으로는 외삽하지 않습니다. 따라서 가려지거나 등장·퇴장한 객체의
-  미관측 구간을 재구성하지 않으며 NC/TTC에 이 한계가 있습니다.
-- pose는 과거 0.1초부터 미래 3초, 객체 annotation 시간 범위는 미래 3.9초까지 필요합니다.
-  마지막 프레임들은 invalid일 수 있습니다. pose 보간 gap 기본 0.16초, annotation gap 0.75초입니다.
-  이 두 값은 YAML의 `nuscenes_pose_max_gap_s`, `nuscenes_annotation_max_gap_s`로 조정할 수 있으나
-  실제 누락 구간을 허용하면 정확도가 떨어집니다.
+기본 `NUSCENES_PREDICTION_FRAME=cache`는 첨부 py123d의 prediction parser와 같은 규약입니다.
+infos 각 항목에 다음 metadata와 pose가 필요합니다.
+
+```python
+conversion_meta = {
+    "coordinate_frame": "current_ego_rear_axle",
+    "coordinate_axes": "x_forward_y_left_z_up",
+    "ego_origin": "rear_axle_center",
+    "quaternion_order": "wxyz",  # 생략 가능, 있으면 wxyz만 허용
+}
+# ego2global_translation: XYZ
+# ego2global_rotation: wxyz quaternion 또는 3x3/길이9 rotation matrix
+```
+
+- command 선택 → displacement를 한 번 cumsum → rear-axle 현재 위치 [0,0]에서 시작합니다.
+- LiDAR calibration 회전을 prediction에 적용하지 않습니다. 임의의 90도 보정도 하지 않습니다.
+- py123d처럼 map_ego2global pose가 있으면 우선하고, 없으면 ego2global pose를 사용합니다.
+- py123d의 global XYZ 결과를 PDMS의 현재 yaw 기준 평면 XY로 투영합니다. pitch/roll이 있을 때도
+  단순히 XY 숫자를 복사하지 않고 cache pose 회전을 거친 global XY와 일치시킵니다.
+- map/objects는 같은 global 기준의 원본 geometry를 같은 평가 local frame으로 옮깁니다.
+- GT는 원본 ego_pose의 미래 rear-axle 위치에서 구합니다. 현재 cache pose와 원본 keyframe ego pose의
+  차이가 0.05 m 또는 1도를 넘으면 invalid로 중단합니다. 두 소스가 별도 정합 좌표계라면
+  명시적인 registration 구현이 필요하며 임의 정렬하거나 tolerance를 늘려 감추지 않습니다.
+- metadata 누락/불일치는 inspect에서 오류로 표시합니다. 검사 우회를 위해 metadata를 임의로
+  덧붙이지 말고 현재 converter가 만든 infos인지 확인하세요.
+- 기본 cache 모드는 py123d와 같이 `representation: step_offsets`만 허용합니다.
+  이미 누적된 다른 출력은 별도의 명시적인 입력 규약이 필요합니다.
+- 구형 metadata 없는 파일만 `--prediction-frame lidar` 또는 `ego`를 명시해 기존 모드로 읽을 수 있습니다.
+  metadata가 있는 파일에 legacy 모드를 선택하면 충돌로 중단합니다.
+
+차량 치수와 제어기는 여전히 기존 YAML의 IONIQ 5입니다. 좌표 원점 일치가 실제 nuScenes 차량
+치수까지 일치한다는 뜻은 아니며, 공식 nuScenes/NAVSIM 점수는 아닙니다.
+map expansion이 항상 필요하고 ETRI용 map_mode로 이를 대체하지 않습니다.
+EP route 연결 불가·길이 부족은 별도 invalid 사유입니다. nuScenes에서 route_ids.json은 읽지 않습니다.
+객체 annotation은 관측 구간 안에서만 선형 보간하며 외삽하지 않습니다.
+과거 pose 0.1초, 미래 GT 3초, 객체 시간 범위 3.9초 조건은 유지합니다.
+
+기존 잘못된 frame으로 산출한 점수는 viewer 재실행만으로 고쳐지지 않습니다.
+새 출력 이름으로 반드시 재평가하세요.
 
 ## 5. 결과 확인
 

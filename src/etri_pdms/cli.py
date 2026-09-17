@@ -83,7 +83,7 @@ def main():
     for command in (check, evaluate):
         command.add_argument('--dataset', choices=['etri','nuscenes'], default=os.environ.get('PDMS_DATASET','etri'))
         command.add_argument('--nuscenes-version', default=os.environ.get('NUSCENES_VERSION','v1.0-mini'))
-        command.add_argument('--prediction-frame', choices=['lidar','ego'], default=os.environ.get('NUSCENES_PREDICTION_FRAME','lidar'))
+        command.add_argument('--prediction-frame', choices=['cache','lidar','ego'], default=os.environ.get('NUSCENES_PREDICTION_FRAME','cache'))
         command.add_argument('--map-root', default=os.environ.get('NUSCENES_MAP_ROOT',''))
     args=parser.parse_args()
     try:return dispatch(args,parser)
@@ -97,7 +97,10 @@ def evaluation_config(args):
     cfg.nuscenes_version=args.nuscenes_version
     cfg.nuscenes_prediction_frame=args.prediction_frame
     cfg.nuscenes_map_root=args.map_root
-    if cfg.dataset=='nuscenes': cfg.axes='x_forward_y_left' # adapter rotates calibrated sensor axes
+    if cfg.dataset=='nuscenes':
+        cfg.axes='x_forward_y_left' # frame conversion is performed by the dataset adapter
+        if cfg.nuscenes_prediction_frame=='cache' and cfg.representation!='step_offsets':
+            raise ValueError('py123d cache mode requires representation: step_offsets (cumsum exactly once)')
     cfg.validate()
     return cfg
 
@@ -125,6 +128,11 @@ def dispatch(args,parser):
             from .nuscenes_data import NuScenesDataset
             dataset=NuScenesDataset(args.data_root,args.raw,cfg)
             tokens=set(dataset.infos)&set(dataset.tables['sample'])
+            for token in sorted(set(plans)&tokens):
+                try:dataset.check_coordinates(token)
+                except (ValueError,KeyError,TypeError) as exc:errors.append({'token':token,'error':str(exc)})
+            result['errors']=errors[:20]
+            result['coordinate_error_count']=len(errors)
             result.update(dataset='nuscenes', prediction_frame=cfg.nuscenes_prediction_frame,
                           matching_dataset_tokens=len(set(plans)&tokens),
                           unmatched_prediction_tokens=len(set(plans)-tokens),

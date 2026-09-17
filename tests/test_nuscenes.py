@@ -40,7 +40,7 @@ def make_data(root):
 
 
 def test_coordinate_map_objects_and_coverage(tmp_path):
-    make_data(tmp_path);cfg=Config(dataset='nuscenes')
+    make_data(tmp_path);cfg=Config(dataset='nuscenes',nuscenes_prediction_frame='lidar')
     ds=NuScenesDataset(tmp_path,tmp_path/'infos.pkl',cfg);s=ds.sample('s2')
     assert np.allclose(s['gt'][-1,:2],[15,0])
     assert np.allclose(ds.transform_prediction(np.array([[0,-15.]]),s),[[15,0]])
@@ -63,7 +63,7 @@ def test_arc_and_interpolation():
 def test_evaluate_and_saved_viewer_payload(tmp_path):
     from etri_pdms.evaluator import evaluate
     pred=make_data(tmp_path);out=tmp_path/'run'
-    cfg=Config(dataset='nuscenes')
+    cfg=Config(dataset='nuscenes',nuscenes_prediction_frame='lidar')
     summary=evaluate(pred,tmp_path/'infos.pkl',tmp_path,out,cfg,visualize=0)
     assert summary['valid']==1 and summary['complete']
     rows=json.loads((out/'sample_scores.json').read_text())
@@ -80,6 +80,7 @@ def test_nuscenes_short_cli(tmp_path,monkeypatch,capsys):
     from etri_pdms import cli
     pred=make_data(tmp_path)
     monkeypatch.setenv('PDMS_DATASET','nuscenes')
+    monkeypatch.setenv('NUSCENES_PREDICTION_FRAME','lidar')
     monkeypatch.setenv('NUSCENES_DATA_ROOT',str(tmp_path))
     monkeypatch.setenv('NUSCENES_CACHE_PATH',str(tmp_path/'infos.pkl'))
     monkeypatch.setenv('NUSCENES_PREDICTION_CACHE',str(pred))
@@ -95,7 +96,7 @@ def test_infos_limits_selection_and_timestamp(tmp_path):
     make_data(tmp_path)
     path=tmp_path/'subset.pkl'
     with path.open('wb') as f:pickle.dump({'infos':[dict(token='s2',timestamp=1_000_000)]},f)
-    ds=NuScenesDataset(tmp_path,path,Config(dataset='nuscenes'))
+    ds=NuScenesDataset(tmp_path,path,Config(dataset='nuscenes',nuscenes_prediction_frame='lidar'))
     assert set(ds.infos)=={'s2'}
     with pytest.raises(ValueError,match='infos PKL match'):ds.sample('s3')
     ds.infos['s2']['timestamp']=2_000_000
@@ -104,7 +105,7 @@ def test_infos_limits_selection_and_timestamp(tmp_path):
 
 def test_missing_map_and_unknown_raw_token(tmp_path):
     make_data(tmp_path)
-    ds=NuScenesDataset(tmp_path,tmp_path/'infos.pkl',Config(dataset='nuscenes'))
+    ds=NuScenesDataset(tmp_path,tmp_path/'infos.pkl',Config(dataset='nuscenes',nuscenes_prediction_frame='lidar'))
     ds.infos['unknown']=dict(token='unknown',timestamp=1_000_000)
     assert ds.scenario_for('unknown')=='__unmatched__'
     with pytest.raises(ValueError,match='raw sample match'):ds.sample('unknown')

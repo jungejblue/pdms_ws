@@ -6,6 +6,8 @@ NC / DAC / EP / TTC / C / PDMS 평가를 수행하고 시나리오별 JSON 및 l
 
 nuScenes도 원본 JSON metadata/map expansion + infos PKL + planning PKL로 평가할 수 있습니다.
 nuScenes도 ETRI처럼 세 입력을 사용하며, prediction·infos·원본 sample token을 연결합니다.
+기본 frame은 py123d의 `current_ego_rear_axle` 캐시이며 LiDAR 회전을 추가하지 않습니다.
+업데이트 후 환경설정을 다시 source하고, 기존 점수는 새 출력 폴더에 재평가해야 합니다.
 [nuScenes 데이터 배치·좌표계·평가 조건](docs/NUSCENES.md)을 먼저 확인하세요.
 설치 후 빠른 실행:
 
@@ -18,8 +20,8 @@ pdms serve --run nuscenes_check
 # http://localhost:7200
 ```
 
-nuScenes는 기본 IONIQ 5 가상 차량으로 평가합니다. 실제 nuScenes ego 차량의 footprint를
-복원한 결과 또는 공식 nuScenes/NAVSIM 벤치마크 점수가 아닙니다.
+nuScenes는 기본 IONIQ 5 가상 차량으로 평가합니다. 캐시 rear-axle 좌표를 검증해 사용하지만 실제 nuScenes 차량 치수와 일치하는 것은 아닙니다.
+공식 nuScenes/NAVSIM 벤치마크 점수도 아닙니다.
 아래 ETRI 명령은 그대로 사용할 수 있습니다.
 
 ## 1. 설치

@@ -1,8 +1,7 @@
-"""nuScenes JSON adapter for the common 3-second GT/MPC evaluator.
+"""nuScenes raw-data evaluation with an explicit prediction coordinate contract.
 
-Default VAD mode: LIDAR_TOP origin trajectories, rotated into ego axes. A virtual
-vehicle's rear axle is placed at this tracked anchor (explicit scoring proxy).
-It does NOT claim to reconstruct the physical nuScenes vehicle footprint.
+Default cache mode matches py123d's current-ego rear-axle convention.
+Legacy lidar/ego modes remain explicit; they never silently replace cache mode.
 """
 from collections import defaultdict, OrderedDict
 from pathlib import Path
@@ -12,6 +11,7 @@ from scipy.spatial.transform import Rotation
 from .geometry import local,box
 from .inputs import digest,load_infos
 from .nuscenes_map import NuScenesMap
+from .cache_coordinates import cache_pose
 
 
 def rotation(q):
@@ -48,6 +48,8 @@ def agent_class(name):
 
 class NuScenesDataset:
     def __init__(self,root,infos,cfg):
+        if cfg.nuscenes_prediction_frame=='cache' and cfg.representation!='step_offsets':
+            raise ValueError('cache mode requires step_offsets, matching py123d')
         self.root=Path(root).expanduser().resolve();self.cfg=cfg
         self.version=cfg.nuscenes_version
         if self.version not in ('v1.0-mini','v1.0-trainval'):
@@ -83,10 +85,30 @@ class NuScenesDataset:
         self.input_report={'source':str(self.root),'version':self.version,'kind':'nuscenes_raw_json',
                            'selected_files':manifest,'map_files':[], 'infos_pkl_required':True,'infos_pkl':infos_report,
                            'prediction_frame':cfg.nuscenes_prediction_frame,
-                           'vehicle_anchor':'virtual_rear_axle_at_'+cfg.nuscenes_prediction_frame+'_origin',
+                           'vehicle_anchor':('cache_rear_axle_center' if cfg.nuscenes_prediction_frame=='cache' else 'virtual_rear_axle_at_'+cfg.nuscenes_prediction_frame+'_origin'),
+                           'coordinate_contract':('py123d_current_ego_rear_axle' if cfg.nuscenes_prediction_frame=='cache' else 'explicit_legacy_frame'),
                            'object_interpolation':'linear_2hz_to_10hz_with_unwrapped_yaw_no_extrapolation'}
 
     def scenario_for(self,token):return self.tables['sample'].get(token,{}).get('scene_token','__unmatched__')
+
+    def check_coordinates(self,token):
+        info=self.infos[token]
+        if self.cfg.nuscenes_prediction_frame!='cache':
+            if info.get('conversion_meta') is not None:
+                raise ValueError('Infos declares cache metadata; use --prediction-frame cache instead of legacy lidar/ego')
+            return None
+        r,t=cache_pose(info)
+        if token not in self.lidar_key:raise ValueError('Missing LIDAR_TOP keyframe')
+        key=self.lidar_key[token]
+        raw=self.tables['ego_pose'][key['ego_pose_token']]
+        raw_r=rotation(raw['rotation']);raw_t=np.asarray(raw['translation'],float)
+        error=float(np.linalg.norm(t-raw_t))
+        angle=float(Rotation.from_matrix(raw_r.T@r).magnitude())
+        # Raw future GT is an ego rear-axle trajectory. A shifted cache pose cannot
+        # safely be substituted without an explicit raw-to-cache registration.
+        if error>.05 or angle>np.deg2rad(1):
+            raise ValueError(f'Cache/raw ego pose mismatch: {error:.4f} m, {np.rad2deg(angle):.4f} deg; check cache version, timestamp and origin; no automatic alignment')
+        return r,t,error,float(np.rad2deg(angle))
 
     def scene(self,name):
         if name in self.cache:
@@ -125,10 +147,19 @@ class NuScenesDataset:
         name=self.scenario_for(token);cfg=self.cfg
         if token not in self.lidar_key:raise ValueError('Missing LIDAR_TOP keyframe for sample')
         key=self.lidar_key[token];t0=key['timestamp']/1e6
+        coordinate_check=self.check_coordinates(token)
         ts,poses,tracks=self.scene(name)
         query=t0+np.arange(31)*.1
         gt_world=interpolate(ts,poses,query,cfg.nuscenes_pose_max_gap_s,(2,))
-        origin=gt_world[0].copy();gt=gt_world.copy();gt[:,:2]=local(gt[:,:2],origin);gt[:,2]-=origin[2]
+        origin=gt_world[0].copy()
+        cache_r=None;cache_t=None;coordinate_diagnostics={}
+        if coordinate_check is not None:
+            cache_r,cache_t,pos_error,yaw_error=coordinate_check
+            origin=np.array([*cache_t[:2],np.arctan2(cache_r[1,0],cache_r[0,0])])
+            coordinate_diagnostics={'pose_position_error_m':pos_error,'pose_rotation_error_deg':yaw_error,
+                                    'frame':'current_ego_rear_axle','axes':'x_forward_y_left_z_up',
+                                    'projection':'cache XYZ -> global XYZ -> current yaw-aligned XY'}
+        gt=gt_world.copy();gt[:,:2]=local(gt[:,:2],origin);gt[:,2]-=origin[2]
         past=interpolate(ts,poses[:,:2],np.array([t0-.1,t0]),cfg.nuscenes_pose_max_gap_s)
         initial=np.array([0.,0.,0.,np.linalg.norm(past[1]-past[0])/.1])
         object_times=t0+np.arange(40)*.1
@@ -161,9 +192,15 @@ class NuScenesDataset:
         return dict(token=token,scenario=name,scene_name=scene.get('name',name),gt=gt,initial=initial,
                     objects=objects,t0=t0,**geometry,
                     prediction_rotation=rotation(cs['rotation']),dataset='nuscenes',
-                    anchor_assumption=self.input_report['vehicle_anchor'])
+                    anchor_assumption=self.input_report['vehicle_anchor'],
+                    cache_rotation=cache_r,cache_translation=cache_t,evaluation_origin=origin,
+                    coordinate_diagnostics=coordinate_diagnostics)
 
     def transform_prediction(self,pred,sample):
+        if self.cfg.nuscenes_prediction_frame=='cache':
+            xyz=np.column_stack([pred,np.zeros(len(pred))])
+            world=xyz@sample['cache_rotation'].T+sample['cache_translation']
+            return local(world[:,:2],sample['evaluation_origin'])
         if self.cfg.nuscenes_prediction_frame=='ego':return pred
         # VAD uses LiDAR-origin displacements in the current calibrated LiDAR axes.
         xyz=np.column_stack([pred,np.zeros(len(pred))])
