@@ -1,3 +1,5 @@
+> EP 정규화 업데이트: GT MPC rollout 진행 거리를 고정 분모로 사용합니다. GT EP=1, 모델 EP=clip(d_model/d_gt,0,1). NC/DAC는 EP 안에서 곱하지 않고 종합 PDMS에 반영합니다. 세부 정지 규칙과 DAC 진단은 [GT_BASELINE_EP.md](docs/GT_BASELINE_EP.md)를 참고하세요.
+
 # GT 경로 EP 및 1.5초 간격 평가 업데이트
 
 기본 EP 기준선은 `gt_path`입니다. 실제 GT의 차량 중심 경로에 모델/GT rollout을 모두 투영합니다.

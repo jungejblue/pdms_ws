@@ -7,10 +7,17 @@ from .comfort import ego_is_comfortable
 
 AGENTS={'car','vehicle','pedestrian','cyclist','bicycle','motorcycle','bus','truck'}
 
-def normalize_pair(progress,nc,dac):
-    mask=np.asarray(nc)*np.asarray(dac); raw=np.asarray(progress)*mask
-    if raw.max()>5.: return raw/raw.max()
-    out=np.ones(len(raw));out[mask==0]=0;return out
+def normalize_pair(progress,nc=None,dac=None):
+    """GT rollout is the sole baseline; safety metrics stay separate.
+
+    A <=5cm baseline is treated as no progress: both stopped => 1,
+    model moved => 0. Never normalize by model progress.
+    """
+    gt,model=np.asarray(progress,float)
+    if not np.isfinite([gt,model]).all() or min(gt,model)<0:
+        raise ValueError('Invalid EP progress')
+    ep=(1. if model<=.05 else 0.) if gt<=.05 else float(np.clip(model/gt,0.,1.))
+    return np.array([1.,ep])
 
 def relative_angle(state,xy):
     delta=np.asarray(xy)-state[:2]
@@ -81,5 +88,6 @@ def score_pair(gt,model,sample,cfg):
     scores=[score_rollout(r,sample,cfg) for r in (gt,model)]
     eps=normalize_pair([s['progress_m'] for s in scores],[s['NC'] for s in scores],[s['DAC'] for s in scores])
     for s,ep in zip(scores,eps):
+        s['ep_normalization']='gt_rollout_capped_ratio';s['ep_baseline_progress_m']=scores[0]['progress_m']
         s['EP']=float(ep);s['PDMS']=s['NC']*s['DAC']*(5*s['EP']+5*s['TTC']+2*s['C'])/12
     return scores

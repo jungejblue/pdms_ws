@@ -27,10 +27,10 @@ def test_prediction_mode_and_no_double_cumsum(cfg):
 
 def test_ep_reference_semantics():
     np.testing.assert_allclose(normalize_pair([20,10],[1,1],[1,1]),[1,.5])
-    np.testing.assert_allclose(normalize_pair([20,10],[0,1],[1,1]),[0,1])
+    np.testing.assert_allclose(normalize_pair([20,10],[0,1],[1,1]),[1,.5])
     np.testing.assert_allclose(normalize_pair([0,0],[1,1],[1,1]),[1,1])
-    np.testing.assert_allclose(normalize_pair([5,4],[1,1],[1,1]),[1,1])
-    np.testing.assert_allclose(normalize_pair([20,10],[.5,1],[1,1]),[1,1])
+    np.testing.assert_allclose(normalize_pair([5,4],[1,1],[1,1]),[1,.8])
+    np.testing.assert_allclose(normalize_pair([20,10],[.5,1],[1,1]),[1,.5])
 
 def test_multi_id_progress(cfg):
     lines={'9':LineString([[-10,0],[10,0]]),'2':LineString([[10,0],[40,0]])}
@@ -75,3 +75,10 @@ def test_stop_preserves_measured_speed(cfg):
     assert out['states'][1,0]==pytest.approx(.5)
     assert out['states'][1,3]>=4.599
     assert np.min(out['states'][:,3])>=0
+
+
+def test_gt_only_baseline_and_cap():
+    np.testing.assert_allclose(normalize_pair([20,25],[1,1],[1,1]),[1,1])
+    np.testing.assert_allclose(normalize_pair([20,10],[0,0],[0,0]),[1,.5])
+    np.testing.assert_allclose(normalize_pair([0,10]),[1,0])
+    np.testing.assert_allclose(normalize_pair([0,0]),[1,1])

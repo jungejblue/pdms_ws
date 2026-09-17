@@ -28,6 +28,7 @@ def evaluate_sample(token,plans,dataset,out,cfg):
         sample=dataset.sample(token);row['scenario']=sample['scenario'];row['map_quality']=sample['map_quality'];row['route_source']=sample['route_source']
         row.update(sample['initial_speed_info'])
         row['ep_reference']=cfg.ep_reference
+        row['ep_normalization']='gt_rollout_capped_ratio'
         row['ep_path_info']=sample.get('ep_path_info',{})
         pred,mode=select_prediction(plans[token],cfg)
         row['dataset']=cfg.dataset
@@ -99,7 +100,7 @@ def evaluate(pred_path,infos,root,out,cfg,limit=None,tokens=None,visualize=20,wo
     valid=[r for r in rows if r['valid']];frame=pd.DataFrame(rows);frame.to_csv(out/'scores.csv',index=False)
     summary={'dataset':cfg.dataset,'metric':cfg.dataset.upper()+'-PDMS-GT-MPC-v0.1','package_version':__version__,'config_hash':cfg.hash(),'requested':len(rows),'valid':len(valid),'invalid':len(rows)-len(valid),
              'workers_requested':workers,'workers_effective':effective_workers,
-             'ep_reference':cfg.ep_reference,'sample_interval_s':sample_interval,
+             'ep_normalization':'gt_rollout_capped_ratio','ep_reference':cfg.ep_reference,'sample_interval_s':sample_interval,
              'initial_speed_policy':'backward_0.1s_else_scene_start_forward_0.1s',
              'forward_initial_speed_count':sum(r.get('initial_speed_uses_future',False) for r in rows),
              'complete':len(valid)==len(rows),'map_mode':cfg.map_mode,'official_navsim_comparable':False,
