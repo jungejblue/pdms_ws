@@ -10,6 +10,51 @@ ETRI raw data와 VAD planning PKL을 읽어 **GT baseline PDMS 및 NC / DAC / EP
 
 이 지표는 `ETRI-PDMS-GT-MPC`입니다. 공식 NAVSIM과 horizon·controller·reference·데이터 adapter가 다릅니다. 기본 지도 설정은 centerline 폭을 사용한 **개발용 근사**이며, 최종 비교에는 검증된 polygon을 사용하세요.
 
+## 빠른 실행: 환경변수 설정
+
+최초 설치는 아래 1절을 따릅니다. `scripts/setup_pdms_env.sh`의 세 입력 경로를 실제 위치에 맞게 수정한 후 실행하세요.
+
+```bash
+cd "$HOME/pdms_ws"
+source pdms/bin/activate
+source scripts/setup_pdms_env.sh
+pdms inspect
+pdms evaluate --out vad_full
+pdms serve --run vad_full
+```
+
+브라우저: http://localhost:7200. 서버 종료는 Ctrl+C입니다.
+
+- 로컬 기본 데이터 루트: `$HOME/data/etri`
+- Docker 기본 데이터 루트: `/data/etri`
+- infos 예시: `cache/etri_infos_temporal_val.pkl`
+- planning 예시: `result/stage2/planning.pkl`
+- 원본 parquet split 예시: `val/`
+
+이 split과 PKL 파일명은 예시이므로 실제 경로로 수정해야 합니다. 자동 PKL 선택은 하지 않습니다.
+스크립트는 source할 때 경로 변수를 다시 설정합니다. 임시 override는 source **후** export하거나 CLI 옵션으로 지정하세요.
+
+`--config` 생략 시 저장소의 `configs/ioniq5_2023.yaml`을 읽습니다.
+명령어에 입력 경로를 직접 주면 환경변수보다 우선합니다.
+`evaluate --out`, `demo --out`, `serve --run`은 `vad_full` 또는 `runs/vad_full`을 저장소의 `runs/vad_full`로 해석합니다.
+절대 경로는 그대로 사용하며, 기존 결과가 있는 출력 폴더는 덮어쓰지 않습니다.
+`map-template --out`과 `visualize --sample-dir`은 기존 파일 경로 규칙을 유지합니다.
+
+Docker 컨테이너 **안에서** 다음을 실행합니다.
+
+```bash
+source pdms/bin/activate
+source scripts/setup_pdms_docker_env.sh
+pdms evaluate --out vad_full
+pdms serve --run vad_full
+```
+
+Docker 설정은 서버를 `0.0.0.0:7200`에 바인딩합니다. 컨테이너 생성 시
+`-p 127.0.0.1:7200:7200`으로 포트를 매핑하고, 호스트 데이터 폴더를 `/data`에 마운트하세요.
+호스트 브라우저에서는 http://localhost:7200 으로 접속합니다.
+이 스크립트 자체가 컨테이너를 생성하거나 포트 매핑을 추가하지는 않습니다.
+로컬 설정은 `127.0.0.1:7200`을 사용합니다. 두 뷰어를 동시에 실행할 때는 한쪽에 다른 `--port`를 지정하세요.
+
 ## 1. 설치
 
 GitHub의 이 저장소를 clone하거나 소스 ZIP을 해제한 후 `pdms_ws` 디렉터리에서 실행합니다.
@@ -139,7 +184,7 @@ pdms evaluate \
   --config configs/ioniq5_2023.yaml \
   --out runs/vad_full
 
-pdms serve --run runs/vad_full --port 7201
+pdms serve --run runs/vad_full --port 7200
 ```
 
 모델 비교에는 같은 평가 token 목록을 사용합니다. 각 줄에 exact token 하나를 적으세요.
@@ -195,7 +240,7 @@ python -m json.tool runs/vad_full/scenario_scores.json
 - **Control charts:** 속도·가속도·조향 그래프
 - **Reset BEV camera:** 위에서 보는 시점으로 복귀
 
-주황은 VAD, 초록은 GT, 파랑은 EP route입니다. 기본 포트 7201을 변경하려면 `--port`를 지정하세요. 여러 브라우저가 연결되면 샘플/시간/토글은 공유됩니다.
+주황은 VAD, 초록은 GT, 파랑은 EP route입니다. 기본 포트 7200을 변경하려면 `--port`를 지정하세요. 여러 브라우저가 연결되면 샘플/시간/토글은 공유됩니다.
 
 원격 서버에서 외부 인터페이스로 접속할 때:
 
@@ -239,3 +284,4 @@ python -m pytest -q
 - [추가 실행 명령](docs/COMMANDS.md)
 - [GitHub 게시 명령](docs/PUBLISH.md)
 - [출처 및 라이선스](NOTICE.md)
+

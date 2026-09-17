@@ -4,7 +4,7 @@
 
 ```bash
 git init -b main
-git add README.md pyproject.toml LICENSE NOTICE.md .gitignore .github src configs docs tests licenses
+git add README.md pyproject.toml LICENSE NOTICE.md .gitignore .github src configs docs tests licenses scripts
 git status --short
 git diff --cached --stat
 ```
@@ -33,3 +33,4 @@ python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
 ```
 
 라이선스는 Apache-2.0이며 포함된 NAVSIM 파생 코드의 출처/라이선스를 NOTICE와 licenses에 보존했습니다. ETRI 등 데이터셋의 재배포 권한은 코드 라이선스와 별개입니다.
+

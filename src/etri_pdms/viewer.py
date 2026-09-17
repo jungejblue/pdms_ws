@@ -341,7 +341,7 @@ class PDMSViewer:
             return True
 
 
-def serve(run, host='127.0.0.1', port=7201):
+def serve(run, host='127.0.0.1', port=7200):
     try:
         import viser
     except ImportError as exc:
@@ -373,8 +373,9 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--run',required=True)
     parser.add_argument('--host',default='127.0.0.1')
-    parser.add_argument('--port',type=int,default=7201)
+    parser.add_argument('--port',type=int,default=7200)
     args=parser.parse_args()
     return serve(args.run,args.host,args.port)
 
 if __name__=='__main__':raise SystemExit(main())
+

@@ -15,16 +15,16 @@ pdms --help
 서버:
 
 ```bash
-pdms serve --run runs/vad_full --host 127.0.0.1 --port 7201
+pdms serve --run runs/vad_full --host 127.0.0.1 --port 7200
 ```
 
 로컬 컴퓨터의 별도 터미널:
 
 ```bash
-ssh -N -L 7201:127.0.0.1:7201 USER@SERVER
+ssh -N -L 7200:127.0.0.1:7200 USER@SERVER
 ```
 
-로컬 브라우저: http://localhost:7201
+로컬 브라우저: http://localhost:7200
 
 ## 선택적인 정적 HTML / PNG
 
@@ -54,3 +54,4 @@ pdms serve --help
 ```
 
 기존 `etri-pdms` 명령과 `--pred` / `--infos` 이름도 호환 alias로 유지합니다. 새 사용자는 README의 `pdms`, `--planning-pkl`, `--raw-pkl`을 사용하면 됩니다.
+
