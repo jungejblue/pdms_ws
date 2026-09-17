@@ -47,7 +47,7 @@ def read_map(frame,pose,cfg,override=None):
     intersections=[Point(p).buffer(cfg.lane_width) for p,n in nodes.items() if n>=3]
     return lines,lanes,unary_union(lanes),unary_union(intersections),'approximate_centerline_buffer'
 
-def choose_route(lines,gt,cfg,explicit_ids=None):
+def choose_route(lines,gt,cfg,explicit_ids=None,adjacency_override=None):
     """GT selects evaluation route only. This future information never reaches MPC.
     Both proposals project on this ONE fixed ordered arc-length path.
     """
@@ -65,7 +65,7 @@ def choose_route(lines,gt,cfg,explicit_ids=None):
             key=min(candidates)[1]
             if not ids or ids[-1]!=key: ids.append(key)
         # Fill intermediate directed segments using endpoint topology.
-        adjacency={k:[j for j,b in lines.items() if j!=k and np.linalg.norm(np.array(a.coords[-1])-b.coords[0])<=cfg.route_endpoint_tolerance] for k,a in lines.items()}
+        adjacency=adjacency_override if adjacency_override is not None else {k:[j for j,b in lines.items() if j!=k and np.linalg.norm(np.array(a.coords[-1])-b.coords[0])<=cfg.route_endpoint_tolerance] for k,a in lines.items()}
         filled=[ids[0]]
         for target in ids[1:]:
             queue=[[filled[-1]]]; found=None
@@ -83,6 +83,8 @@ def choose_route(lines,gt,cfg,explicit_ids=None):
     while True:
         last=lines[ids[-1]]
         next_ids=[key for key,line in lines.items() if key not in ids and np.linalg.norm(np.asarray(last.coords[-1])-line.coords[0])<=cfg.route_endpoint_tolerance]
+        if adjacency_override is not None:
+            next_ids=[key for key in adjacency_override.get(ids[-1],[]) if key not in ids and key in lines]
         if len(next_ids)!=1: break
         ids.append(next_ids[0])
     xy=[]

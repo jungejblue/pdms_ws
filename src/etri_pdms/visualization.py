@@ -5,7 +5,7 @@ from shapely.geometry import mapping,shape
 from .geometry import ego_box
 
 def scene_payload(sample,cfg):
-    return {'route':mapping(sample['route']),'drivable':mapping(sample['drivable']),
+    return {'dataset':cfg.dataset,'anchor_assumption':sample.get('anchor_assumption','configured_ego_rear_axle'),'route':mapping(sample['route']),'drivable':mapping(sample['drivable']),
             'objects':[[{'id':o['id'],'polygon':mapping(o['polygon'])} for o in frame] for frame in sample['objects'][:31]],
             'vehicle':cfg.to_dict()['vehicle'],'map_quality':sample['map_quality']}
 
@@ -75,6 +75,6 @@ def index_report(out,rows,summary):
     for r in rows:
         link=f'<a href="samples/{r["artifact_id"]}/visualization.html">View</a>' if r.get('valid') and r.get('visualized') else ''
         cells.append('<tr>'+''.join(f'<td>{html.escape(str(r.get(k,"")))}</td>' for k in ('token','valid','PDMS','NC','DAC','EP','TTC','C','invalid_reason'))+f'<td>{link}</td></tr>')
-    text='<!doctype html><meta charset="utf-8"><title>ETRI PDMS</title><style>body{font:15px system-ui;margin:32px;background:#f6f8f7}table{border-collapse:collapse;background:white}td,th{padding:9px;border:1px solid #ddd}pre{white-space:pre-wrap}</style><h1>ETRI-PDMS-GT-MPC</h1>'
-    text+='<p>GT baseline · 2023 IONIQ 5 · 3 s / 10 Hz. Dataset-adapted score, not official NAVSIM benchmark.</p><pre>'+html.escape(json.dumps(summary,indent=2,ensure_ascii=False))+'</pre><table><tr>'+''.join('<th>'+k+'</th>' for k in ('Token','Valid','PDMS','NC','DAC','EP','TTC','C','Reason','Visual'))+'</tr>'+''.join(cells)+'</table>'
+    text='<!doctype html><meta charset="utf-8"><title>PDMS</title><style>body{font:15px system-ui;margin:32px;background:#f6f8f7}table{border-collapse:collapse;background:white}td,th{padding:9px;border:1px solid #ddd}pre{white-space:pre-wrap}</style><h1>PDMS-GT-MPC</h1>'
+    text+='<p>GT baseline · configured virtual vehicle · 3 s / 10 Hz. Dataset-adapted score, not official NAVSIM benchmark.</p><pre>'+html.escape(json.dumps(summary,indent=2,ensure_ascii=False))+'</pre><table><tr>'+''.join('<th>'+k+'</th>' for k in ('Token','Valid','PDMS','NC','DAC','EP','TTC','C','Reason','Visual'))+'</tr>'+''.join(cells)+'</table>'
     (out/'report.html').write_text(text,encoding='utf-8')

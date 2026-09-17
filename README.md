@@ -2,7 +2,25 @@
 
 ETRI 원본 parquet, infos PKL, planning prediction PKL을 이용해 MPC-CLF 추종과
 NC / DAC / EP / TTC / C / PDMS 평가를 수행하고 시나리오별 JSON 및 localhost 뷰어를 제공합니다.
-공식 NAVSIM과는 GT reference·제어기·평가 시간이 다른 ETRI용 지표입니다.
+공식 NAVSIM과는 GT reference·제어기·평가 시간이 다른 데이터셋별 개발용 지표입니다.
+
+nuScenes도 원본 JSON metadata/map expansion + infos PKL + planning PKL로 평가할 수 있습니다.
+nuScenes도 ETRI처럼 세 입력을 사용하며, prediction·infos·원본 sample token을 연결합니다.
+[nuScenes 데이터 배치·좌표계·평가 조건](docs/NUSCENES.md)을 먼저 확인하세요.
+설치 후 빠른 실행:
+
+```bash
+source pdms/bin/activate
+source scripts/setup_pdms_env.sh nuscenes v1.0-mini
+pdms inspect
+pdms evaluate --out nuscenes_check --limit 5
+pdms serve --run nuscenes_check
+# http://localhost:7200
+```
+
+nuScenes는 기본 IONIQ 5 가상 차량으로 평가합니다. 실제 nuScenes ego 차량의 footprint를
+복원한 결과 또는 공식 nuScenes/NAVSIM 벤치마크 점수가 아닙니다.
+아래 ETRI 명령은 그대로 사용할 수 있습니다.
 
 ## 1. 설치
 

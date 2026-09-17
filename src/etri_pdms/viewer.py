@@ -106,7 +106,7 @@ class PDMSViewer:
         server.scene.set_up_direction('+z')
         server.scene.world_axes.visible = True
         server.gui.configure_theme(control_layout='collapsible', control_width='large', show_share_button=False)
-        server.gui.add_markdown('## ETRI PDMS viewer\nGT baseline · IONIQ 5 · saved rollout')
+        server.gui.add_markdown('## PDMS viewer\nGT baseline · configured virtual vehicle · saved rollout')
         with server.gui.add_folder('Sample'):
             self.selector = server.gui.add_dropdown('Sample', options=self.labels, initial_value=self.labels[0])
             self.previous = server.gui.add_button('Previous sample')
@@ -235,6 +235,8 @@ class PDMSViewer:
     def _update_scores(self, record):
         text = f'**{record["token"]}**\n\n'
         text += f'Map: `{record.get("map_quality", "unknown")}`\n\n'
+        if record.get('dataset') == 'nuscenes':
+            text += f"Dataset: nuScenes · {record.get('scene_name', '')}\n\nVirtual vehicle anchor: `{record.get('anchor_assumption', '')}`\n\n"
         if record.get('map_quality') == 'approximate_centerline_buffer':
             text += '**Approximate map — development score.**\n\n'
         if not record.get('valid'):
@@ -351,7 +353,7 @@ def serve(run, host='127.0.0.1', port=7200):
     # Viser may otherwise select another port automatically; make CLI port explicit.
     with socket.socket(socket.AF_INET,socket.SOCK_STREAM) as check:
         check.bind((host,port))
-    server=viser.ViserServer(host=host,port=port,label='ETRI PDMS · GT / VAD')
+    server=viser.ViserServer(host=host,port=port,label='PDMS · GT / prediction')
     try:
         viewer=PDMSViewer(server,records)
         display_host='localhost' if host in ('127.0.0.1','0.0.0.0') else host
@@ -378,4 +380,3 @@ def main():
     return serve(args.run,args.host,args.port)
 
 if __name__=='__main__':raise SystemExit(main())
-

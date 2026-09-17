@@ -17,7 +17,12 @@ def write_json(path,data):
 def evaluate(pred_path,infos,root,out,cfg,limit=None,tokens=None,visualize=20):
     out=Path(out)
     if out.exists() and any(out.iterdir()): raise FileExistsError('Output already contains a run; choose a new --out directory')
-    out.mkdir(parents=True,exist_ok=True);plans,planning_report=load_plans(pred_path,return_report=True);dataset=Dataset(root,infos,cfg)
+    out.mkdir(parents=True,exist_ok=True);plans,planning_report=load_plans(pred_path,return_report=True)
+    backend=Dataset
+    if cfg.dataset=='nuscenes':
+        from .nuscenes_data import NuScenesDataset
+        backend=NuScenesDataset
+    dataset=backend(root,infos,cfg)
     write_json(out/'input_manifest.json', {'planning':planning_report,'infos':dataset.input_report})
     requested=tokens if tokens is not None else list(plans)
     if limit is not None: requested=requested[:limit]
@@ -33,9 +38,14 @@ def evaluate(pred_path,infos,root,out,cfg,limit=None,tokens=None,visualize=20):
         folder=out/'samples'/row['artifact_id'];folder.mkdir(parents=True,exist_ok=True)
         try:
             if token not in plans: raise ValueError('requested token missing in planning PKL')
-            if token not in dataset.infos: raise ValueError('prediction token has no ETRI info match; nuScenes PKL is a format example only')
+            if token not in dataset.infos: raise ValueError('prediction token has no match in dataset metadata')
             sample=dataset.sample(token);row['scenario']=sample['scenario'];row['map_quality']=sample['map_quality'];row['route_source']=sample['route_source']
             pred,mode=select_prediction(plans[token],cfg)
+            row['dataset']=cfg.dataset
+            if cfg.dataset=='nuscenes':
+                pred=dataset.transform_prediction(pred,sample)
+                row['scene_name']=sample['scene_name']
+                row['anchor_assumption']=sample['anchor_assumption']
             pred_ref=reference(np.vstack([[0,0],pred]),np.arange(7)*.5)
             gt_ref=reference(sample['gt'][:,:2],np.arange(31)*.1)
             gt_roll=rollout(gt_ref,sample['initial'],cfg);model_roll=rollout(pred_ref,sample['initial'],cfg)
@@ -64,7 +74,7 @@ def evaluate(pred_path,infos,root,out,cfg,limit=None,tokens=None,visualize=20):
         write_json(folder/'result.json',row);rows.append(row)
         print(f'[{index+1}/{len(requested)}] {token}: '+(f'PDMS={row["PDMS"]:.4f}' if row['valid'] else row['invalid_reason']),flush=True)
     valid=[r for r in rows if r['valid']];frame=pd.DataFrame(rows);frame.to_csv(out/'scores.csv',index=False)
-    summary={'metric':'ETRI-PDMS-GT-MPC-v0.1','package_version':__version__,'config_hash':cfg.hash(),'requested':len(rows),'valid':len(valid),'invalid':len(rows)-len(valid),
+    summary={'dataset':cfg.dataset,'metric':cfg.dataset.upper()+'-PDMS-GT-MPC-v0.1','package_version':__version__,'config_hash':cfg.hash(),'requested':len(rows),'valid':len(valid),'invalid':len(rows)-len(valid),
              'complete':len(valid)==len(rows),'map_mode':cfg.map_mode,'official_navsim_comparable':False,
              'reference_failure_count':sum(r['reference_failure'] for r in valid),'elapsed_s':round(time.time()-started,2)}
     if valid:
@@ -75,6 +85,10 @@ def evaluate(pred_path,infos,root,out,cfg,limit=None,tokens=None,visualize=20):
         summary['PDMS_quantiles']={str(k):float(df.PDMS.quantile(k)) for k in (.01,.05,.1,.5)}
         summary['map_quality_counts']=df.map_quality.value_counts().to_dict()
     if not summary['complete']: summary['aggregation_warning']='Means use valid rows only; incomplete run is not a benchmark result. All invalid tokens remain in scores.csv.'
+    if cfg.dataset=='nuscenes':
+        summary['vehicle_anchor']=dataset.input_report['vehicle_anchor']
+        summary['evaluation_assumptions']='Configured virtual vehicle; not physical nuScenes ego footprint. Objects interpolate annotations without extrapolation. Not an official nuScenes benchmark.'
+    write_json(out/'input_manifest.json', {'planning':planning_report,'infos':dataset.input_report})
     scenario_rows=write_scenario_reports(out,rows)
     summary['scenarios']=len(scenario_rows)
     summary['scenario_output']='scenario_scores.json'

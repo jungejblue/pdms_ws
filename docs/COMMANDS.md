@@ -54,4 +54,3 @@ pdms serve --help
 ```
 
 기존 `etri-pdms` 명령과 `--pred` / `--infos` 이름도 호환 alias로 유지합니다. 새 사용자는 README의 `pdms`, `--planning-pkl`, `--raw-pkl`을 사용하면 됩니다.
-

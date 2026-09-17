@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "pdms-ws"
 version = "0.2.0"
-description = "GT-reference PDMS evaluation and localhost visualization for ETRI planning trajectories"
+description = "GT-reference PDMS evaluation and localhost visualization for ETRI and nuScenes planning trajectories"
 readme = "README.md"
 requires-python = ">=3.10"
 license = {file = "LICENSE"}
