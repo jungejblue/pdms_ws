@@ -4,7 +4,8 @@ import json
 import os
 from pathlib import Path
 from .config import read_config
-from .prediction import load_pickle,load_plans,select_prediction
+from .prediction import load_plans,select_prediction
+from .inputs import load_infos
 
 
 
@@ -28,9 +29,9 @@ def resolve_run_path(value):
 
 def prepare_args(args, parser):
     if args.action in ('inspect', 'evaluate'):
-        required = [('pred', '--planning-pkl', 'PDMS_PLANNING_PKL', False)]
+        required = [('pred', '--planning-pkl', 'ETRI_PREDICTION_CACHE', False)]
         if args.action == 'evaluate' or args.raw:
-            required.append(('raw', '--raw-pkl', 'PDMS_RAW_PKL', False))
+            required.append(('raw', '--raw-pkl', 'ETRI_CACHE_PATH', False))
         if args.action == 'evaluate':
             required.append(('data_root', '--data-root', 'PDMS_DATA_ROOT', True))
         for attr, option, env, directory in required:
@@ -38,7 +39,7 @@ def prepare_args(args, parser):
             if not value:
                 parser.error(f'{option} or {env} is required; source scripts/setup_pdms_env.sh (Docker: setup_pdms_docker_env.sh)')
             path = Path(value).expanduser()
-            if not (path.is_dir() if directory else path.is_file()):
+            if not (path.is_dir() if directory else (path.is_file() or path.is_dir())):
                 parser.error(f'{option}: path not found: {path}')
             setattr(args, attr, str(path.resolve()))
         args.config = str(Path(args.config).expanduser())
@@ -54,12 +55,12 @@ def main():
     parser=argparse.ArgumentParser(prog='pdms',description='ETRI-adapted PDMS evaluation. Load only trusted pickle files.')
     commands=parser.add_subparsers(dest='action',required=True)
     check=commands.add_parser('inspect',help='Inspect planning PKL and raw/infos token compatibility')
-    check.add_argument('--planning-pkl','--pred',dest='pred',default=os.environ.get('PDMS_PLANNING_PKL'))
-    check.add_argument('--raw-pkl','--infos',dest='raw',default=os.environ.get('PDMS_RAW_PKL'))
+    check.add_argument('--planning-pkl','--pred','--planning-dir',dest='pred',default=(os.environ.get('ETRI_PREDICTION_CACHE') or os.environ.get('PDMS_PLANNING_PKL')))
+    check.add_argument('--raw-pkl','--infos','--infos-dir',dest='raw',default=(os.environ.get('ETRI_CACHE_PATH') or os.environ.get('PDMS_RAW_PKL')))
     check.add_argument('--config',default=str(workspace_root()/'configs'/'ioniq5_2023.yaml'))
     evaluate=commands.add_parser('evaluate',help='Write scenario JSON, sample metrics and saved viewer data')
-    evaluate.add_argument('--raw-pkl','--infos',dest='raw',default=os.environ.get('PDMS_RAW_PKL'))
-    evaluate.add_argument('--planning-pkl','--pred',dest='pred',default=os.environ.get('PDMS_PLANNING_PKL'))
+    evaluate.add_argument('--raw-pkl','--infos','--infos-dir',dest='raw',default=(os.environ.get('ETRI_CACHE_PATH') or os.environ.get('PDMS_RAW_PKL')))
+    evaluate.add_argument('--planning-pkl','--pred','--planning-dir',dest='pred',default=(os.environ.get('ETRI_PREDICTION_CACHE') or os.environ.get('PDMS_PLANNING_PKL')))
     evaluate.add_argument('--data-root',default=os.environ.get('PDMS_DATA_ROOT'),help='Original ETRI scenario/parquet directory')
     evaluate.add_argument('--out',required=True);evaluate.add_argument('--config',default=str(workspace_root()/'configs'/'ioniq5_2023.yaml'))
     evaluate.add_argument('--limit',type=int)
@@ -92,15 +93,16 @@ def dispatch(args,parser):
         from .map_template import export
         export(args.hd_map,args.out,args.lane_width);return 0
     if args.action=='inspect':
-        cfg=read_config(args.config);plans=load_plans(args.pred);errors=[];modes=[0,0,0]
+        cfg=read_config(args.config);plans,planning_report=load_plans(args.pred,return_report=True);errors=[];modes=[0,0,0]
         for token,entry in plans.items():
             try:_,mode=select_prediction(entry,cfg);modes[mode]+=1
             except (ValueError,TypeError) as exc:errors.append({'token':token,'error':str(exc)})
         result={'tokens':len(plans),'valid_entries':sum(modes),'command_counts':modes,'errors':errors[:20],
-                'representation':cfg.representation,'axes':cfg.axes,'first_tokens':list(plans)[:3]}
+                'representation':cfg.representation,'axes':cfg.axes,'first_tokens':list(plans)[:3],
+                'planning_inputs':{k:v for k,v in planning_report.items() if k != 'token_sources'}}
         if args.raw:
-            content=load_pickle(args.raw);entries=content.get('infos') if isinstance(content,dict) else content
-            if not isinstance(entries,(list,tuple)):raise ValueError('raw PKL must contain an infos list')
+            entries, infos_report = load_infos(args.raw)
+            result['infos_inputs'] = {k:v for k,v in infos_report.items() if k != 'token_sources'}
             tokens={str(i['token']) for i in entries};matched=set(plans)&tokens
             result.update(raw_format='infos',
                           matching_ETRI_tokens=len(matched),unmatched_prediction_tokens=len(set(plans)-tokens),
@@ -123,4 +125,3 @@ def dispatch(args,parser):
     return 0 if summary['complete'] else 2
 
 if __name__=='__main__':raise SystemExit(main())
-

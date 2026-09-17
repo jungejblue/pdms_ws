@@ -14,11 +14,10 @@ export ETRI_DATA_ROOT="${DATASET_ROOT}/etri"
 export ETRI_CACHE_PATH="${ETRI_DATA_ROOT}/cache"
 export ETRI_PREDICTION_CACHE="${ETRI_DATA_ROOT}/result/stage2"
 
-# EDIT THESE THREE PATHS to match your original parquet split and PKL filenames.
-# The two filenames below are examples, not automatically discovered files.
+# Edit directories only. All matching top-level PKLs are discovered by schema.
 export PDMS_DATA_ROOT="${ETRI_DATA_ROOT}/val"
-export PDMS_RAW_PKL="${ETRI_CACHE_PATH}/etri_infos_temporal_val.pkl"
-export PDMS_PLANNING_PKL="${ETRI_PREDICTION_CACHE}/planning.pkl"
+# Prevent stale filename settings from an earlier setup script.
+unset PDMS_RAW_PKL PDMS_PLANNING_PKL
 
 export PDMS_HOST="0.0.0.0"
 export OMP_NUM_THREADS=1
@@ -26,7 +25,7 @@ export OPENBLAS_NUM_THREADS=1
 
 printf '%s\n' "PDMS_WS_ROOT=${PDMS_WS_ROOT}" \
     "PDMS_DATA_ROOT=${PDMS_DATA_ROOT}" \
-    "PDMS_RAW_PKL=${PDMS_RAW_PKL}" \
-    "PDMS_PLANNING_PKL=${PDMS_PLANNING_PKL}" \
+    "ETRI_CACHE_PATH=${ETRI_CACHE_PATH}" \
+    "ETRI_PREDICTION_CACHE=${ETRI_PREDICTION_CACHE}" \
     "PDMS_HOST=${PDMS_HOST}; port=7200"
 unset _PDMS_SCRIPT_DIR

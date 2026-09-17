@@ -22,10 +22,8 @@ class Dataset:
     def __init__(self,root,infos,cfg):
         self.root=Path(root).expanduser().resolve() if root else None
         self.cfg=cfg;self.cache={}
-        content=load_pickle(infos)
-        entries=content.get('infos') if isinstance(content,dict) else content
-        if not isinstance(entries,(list,tuple)) or not entries:
-            raise ValueError('Expected the existing ETRI infos PKL with an infos list; supply original parquet files via --data-root.')
+        from .inputs import load_infos
+        entries, self.input_report = load_infos(infos)
         self.infos={}
         for i in entries:
             if not isinstance(i,dict) or 'token' not in i or 'timestamp' not in i:

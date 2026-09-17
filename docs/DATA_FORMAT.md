@@ -81,3 +81,13 @@ EP의 route는 두 rollout이 공유하는 하나의 누적 길이 path입니다
 각 샘플은 `NC*DAC*(5*EP+5*TTC+2*C)/12`로 계산합니다. 시나리오 PDMS는 그 샘플 PDMS들의 평균입니다. incomplete 시나리오의 대표 점수는 null이며 valid-only 평균은 진단 필드에 따로 있습니다. global summary도 incomplete일 때 대표 macro mean은 null입니다.
 
 지도나 GT baseline이 실패해 점수 0이 나온 경우는 계산 완료(valid)입니다. 데이터/solver 오류로 계산 자체가 실패한 경우가 invalid입니다. 알 수 없는 prediction token은 `__unmatched__`에 모아 기록합니다.
+
+## 디렉터리 입력
+
+`ETRI_CACHE_PATH` 및 `ETRI_PREDICTION_CACHE`는 파일명이 아닌 폴더를 지정합니다.
+바로 아래 `.pkl`/`.pickle`을 정렬하여 읽고 infos/plan_results 구조를 확인합니다.
+재귀 탐색은 하지 않으며 단일 파일 입력도 계속 지원합니다.
+동일 token·동일 값은 중복 제거하고, 충돌은 원본 파일명과 함께 오류로 알립니다.
+infos에서는 평가에 사용하는 token·scene_token·timestamp만 비교합니다.
+planning은 전체 후보와 command를 비교하며, 서로 다른 모델 결과는 별도 폴더로 나누세요.
+`input_manifest.json`에 사용한 파일 hash와 token 출처를 기록합니다.

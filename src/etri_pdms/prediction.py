@@ -23,11 +23,11 @@ def array(x):
     if hasattr(x,'detach'): x=x.detach().cpu().numpy()
     return np.asarray(x,dtype=float)
 
-def load_plans(path):
-    obj=load_pickle(path)
-    if not isinstance(obj,dict) or not isinstance(obj.get('plan_results'),dict):
-        raise ValueError('Expected dict with plan_results[token] = [prediction, command]')
-    return obj['plan_results']
+def load_plans(path, return_report=False):
+    from .inputs import load_collection
+    plans, report = load_collection(path, 'planning')
+    return (plans, report) if return_report else plans
+
 
 def select_prediction(entry,cfg):
     if not isinstance(entry,(list,tuple)) or len(entry)!=2: raise ValueError('entry must be [prediction, command]')

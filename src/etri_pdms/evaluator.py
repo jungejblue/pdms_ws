@@ -17,7 +17,8 @@ def write_json(path,data):
 def evaluate(pred_path,infos,root,out,cfg,limit=None,tokens=None,visualize=20):
     out=Path(out)
     if out.exists() and any(out.iterdir()): raise FileExistsError('Output already contains a run; choose a new --out directory')
-    out.mkdir(parents=True,exist_ok=True);plans=load_plans(pred_path);dataset=Dataset(root,infos,cfg)
+    out.mkdir(parents=True,exist_ok=True);plans,planning_report=load_plans(pred_path,return_report=True);dataset=Dataset(root,infos,cfg)
+    write_json(out/'input_manifest.json', {'planning':planning_report,'infos':dataset.input_report})
     requested=tokens if tokens is not None else list(plans)
     if limit is not None: requested=requested[:limit]
     if not requested: raise ValueError('No prediction tokens selected')
