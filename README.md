@@ -1,3 +1,36 @@
+# GT 경로 EP 및 1.5초 간격 평가 업데이트
+
+기본 EP 기준선은 `gt_path`입니다. 실제 GT의 차량 중심 경로에 모델/GT rollout을 모두 투영합니다.
+지도는 NC/DAC/TTC 평가에 계속 사용합니다. 기존 centerline 방식과 점수가 달라질 수 있습니다.
+
+```bash
+source pdms/bin/activate
+source scripts/setup_pdms_docker_env.sh nuscenes v1.0-trainval
+pdms evaluate --out nuscenes_gt_check --limit 10 --workers 1
+pdms serve --run nuscenes_gt_check
+# http://localhost:7200, 종료 Ctrl+C
+pdms evaluate --out nuscenes_gt_full --workers 4
+pdms serve --run nuscenes_gt_full
+```
+
+기본 scene별 간격은 1.5초입니다. 첫 공통 sample부터 timestamp 기준으로 선택합니다.
+`--limit`은 간격 선택 후 적용합니다. 전체 sample은 `--sample-interval 0`을 사용합니다.
+`--tokens`로 정확한 목록을 재사용할 때에도 `--sample-interval 0`을 함께 지정합니다.
+새 실행은 새 출력 디렉터리를 사용하세요. worker 허용값은 기존과 동일하게 1~4입니다.
+
+```bash
+# 기존 centerline 방식과 동일 token으로 비교
+pdms evaluate --out nuscenes_centerline_check --ep-reference centerline \
+  --tokens runs/nuscenes_gt_check/evaluated_tokens.txt --sample-interval 0 --workers 1
+```
+
+평가 길이는 3초, GT 투영 경로는 이용 가능한 실제 기록을 최대 10초까지 사용합니다.
+정지 GT만 있고 모델이 이동하거나, 기준선 끝을 넘어가거나, 투영 분기가 모호하면 invalid입니다.
+자세한 정책은 [docs/GT_PATH_EP.md](docs/GT_PATH_EP.md)를 참고하세요.
+아래 기존 사용법의 `evaluate`에도 새 기본값이 적용됩니다.
+
+---
+
 # pdms_ws
 
 ETRI 원본 parquet, infos PKL, planning prediction PKL을 이용해 MPC-CLF 추종과

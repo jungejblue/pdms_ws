@@ -85,7 +85,7 @@ class NuScenesMap:
         if drive.is_empty or not lanes:raise ValueError('No map coverage around this sample')
         lines={k:to_local(g) for k,g in self.lines.items() if g.intersects(patch)}
         graph={k:[v for v in self.connectivity.get(k,{}).get('outgoing',[]) if v in lines] for k in lines}
-        route,ids=choose_route(lines,gt_local,cfg,adjacency_override=graph)
+        route,ids=(None,[]) if cfg.ep_reference=='gt_path' else choose_route(lines,gt_local,cfg,adjacency_override=graph)
         return dict(lines=lines,lanes=lanes,drivable=drive,
                     intersection=unary_union(layer('road_segment')),
                     route=route,route_ids=ids,map_quality='nuscenes_map_expansion',

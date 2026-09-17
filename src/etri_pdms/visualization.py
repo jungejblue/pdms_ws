@@ -5,7 +5,7 @@ from shapely.geometry import mapping,shape
 from .geometry import ego_box
 
 def scene_payload(sample,cfg):
-    return {'dataset':cfg.dataset,'anchor_assumption':sample.get('anchor_assumption','configured_ego_rear_axle'),'route':mapping(sample['route']),'drivable':mapping(sample['drivable']),
+    return {'ep_reference':cfg.ep_reference,'ep_path_info':sample.get('ep_path_info',{}),'dataset':cfg.dataset,'anchor_assumption':sample.get('anchor_assumption','configured_ego_rear_axle'),'route':mapping(sample['route']),'drivable':mapping(sample['drivable']),
             'objects':[[{'id':o['id'],'polygon':mapping(o['polygon'])} for o in frame] for frame in sample['objects'][:31]],
             'vehicle':cfg.to_dict()['vehicle'],'map_quality':sample['map_quality']}
 

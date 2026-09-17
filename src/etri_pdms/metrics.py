@@ -62,14 +62,20 @@ def score_rollout(roll,sample,cfg):
     checks=ego_is_comfortable(comfort_states,np.arange(31)*.1)[0]
     c=float(checks.all())
     route=sample['route']
-    projected=[route.project(Point(center(s,veh))) for s in states]
+    projection_info={}
+    if sample.get('route_source')=='gt_recorded_vehicle_center':
+        from .ep_path import project_gt_path
+        projected,projection_info=project_gt_path(states,route,veh)
+    else:
+        projected=[route.project(Point(center(s,veh))) for s in states]
     progress=max(0.,projected[-1]-projected[0])
     if any(corner_off): events.append({'metric':'DAC','time_s':round(corner_off.index(True)*.1,2)})
     return {'NC':float(nc),'DAC':dac,'TTC':ttc,'C':c,'progress_m':progress,
             'comfort_checks':dict(zip(['lon_accel','lat_accel','jerk_magnitude','lon_jerk','yaw_accel','yaw_rate'],map(bool,checks))),
             'events':events,'full_footprint_DAC':float(all(sample['drivable'].covers(p) for p in footprints)),
             'route_projection_max_distance':float(max(route.distance(Point(center(s,veh))) for s in states)),
-            'route_endpoint_clipped':bool(projected[-1]>=route.length-1e-5)}
+            'route_endpoint_clipped':projection_info.get('endpoint_clipped',bool(projected[-1]>=route.length-1e-5)),
+            'ep_projection':projection_info}
 
 def score_pair(gt,model,sample,cfg):
     scores=[score_rollout(r,sample,cfg) for r in (gt,model)]

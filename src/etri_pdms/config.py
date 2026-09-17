@@ -38,6 +38,8 @@ class Controller:
 
 @dataclass
 class Config:
+    ep_reference: str = 'gt_path'
+    ep_gt_path_seconds: float = 10.0
     dataset: str = 'etri'
     nuscenes_version: str = 'v1.0-mini'
     nuscenes_prediction_frame: str = 'cache'
@@ -60,6 +62,8 @@ class Config:
     vehicle: Vehicle = field(default_factory=Vehicle)
     controller: Controller = field(default_factory=Controller)
     def validate(self):
+        if self.ep_reference not in ('gt_path','centerline'): raise ValueError('ep_reference')
+        if not 3.0 <= self.ep_gt_path_seconds <= 60.0: raise ValueError('ep_gt_path_seconds must be 3..60')
         if self.dataset not in ('etri','nuscenes'): raise ValueError('dataset')
         if self.nuscenes_prediction_frame not in ('cache','lidar','ego'): raise ValueError('nuscenes_prediction_frame')
         if min(self.nuscenes_pose_max_gap_s,self.nuscenes_annotation_max_gap_s)<=0: raise ValueError('nuScenes timestamp gaps')

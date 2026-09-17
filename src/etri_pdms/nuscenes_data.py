@@ -189,6 +189,13 @@ class NuScenesDataset:
             self.maps[location]=NuScenesMap(path)
             self.input_report['map_files'].append({'path':str(path),'sha256':digest(path)})
         geometry=self.maps[location].sample(origin,gt_world,gt,cfg)
+        if cfg.ep_reference=='gt_path':
+            from .ep_path import build_gt_path
+            def pose_at(q):
+                p=interpolate(ts,poses,q,cfg.nuscenes_pose_max_gap_s,(2,))
+                p[:,:2]=local(p[:,:2],origin);p[:,2]-=origin[2]
+                return p
+            geometry.update(build_gt_path(t0,ts[-1],pose_at,cfg))
         cs=self.tables['calibrated_sensor'][key['calibrated_sensor_token']]
         return dict(token=token,scenario=name,scene_name=scene.get('name',name),gt=gt,initial=initial,
                     objects=objects,t0=t0,**geometry,

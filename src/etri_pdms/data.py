@@ -70,7 +70,18 @@ class Dataset:
         override,routes=self.extras(name,folder)
         lines,lanes,drivable,intersection,map_quality=read_map(data['hd_map'],hd_origin,cfg,override)
         explicit=routes.get(token)
-        route,ids=choose_route(lines,poses,cfg,explicit)
+        ep_data={}
+        if cfg.ep_reference=='gt_path':
+            from .ep_path import build_gt_path
+            def pose_at(q):
+                p=resample(data['ego_pose'],q,['x','y','yaw'],cfg,['yaw'])
+                p[:,:2]=local(p[:,:2],origin);p[:,2]-=origin[2]
+                return p
+            ep_data=build_gt_path(t0,float(raw_times.max()),pose_at,cfg)
+            route,ids=ep_data.pop('route'),ep_data.pop('route_ids')
+            ep_data.pop('route_source')
+        else:
+            route,ids=choose_route(lines,poses,cfg,explicit)
         objs=data['object'];ego=objs[objs['class'].str.lower()=='ego']
         object_origin=resample(ego,np.array([t0]),['x[m]','y[m]','heading[rad]'],cfg,['heading[rad]'])[0]
         # The ego rows verify log-frame availability even when zero external agents exist.
@@ -97,4 +108,4 @@ class Dataset:
                 objects[k].append({'id':str(track),'class':str(g.iloc[0]['class']),'speed':speed,'xy':xy,'yaw':yaw,'polygon':box(*xy,yaw,vals[3]/2,vals[3]/2,vals[4])})
         return dict(token=token,scenario=name,gt=poses,initial=initial,objects=objects,route=route,route_ids=ids,
                     lines=lines,lanes=lanes,drivable=drivable,intersection=intersection,map_quality=map_quality,
-                    route_source='explicit' if explicit else 'gt_evaluation_only',t0=t0,initial_speed_info=speed_info)
+                    route_source='gt_recorded_vehicle_center' if cfg.ep_reference=='gt_path' else ('explicit' if explicit else 'gt_evaluation_only'),t0=t0,initial_speed_info=speed_info,**ep_data)

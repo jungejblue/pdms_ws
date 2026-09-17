@@ -237,6 +237,7 @@ class PDMSViewer:
         text += f'Map: `{record.get("map_quality", "unknown")}`\n\n'
         if record.get('dataset') == 'nuscenes':
             text += f"Dataset: nuScenes · {record.get('scene_name', '')}\n\nVirtual vehicle anchor: `{record.get('anchor_assumption', '')}`\n\n"
+        text += f"EP reference: `{record.get('ep_reference', 'centerline')}`\n\n"
         if record.get('map_quality') == 'approximate_centerline_buffer':
             text += '**Approximate map — development score.**\n\n'
         if not record.get('valid'):
