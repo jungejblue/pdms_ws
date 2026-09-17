@@ -98,7 +98,7 @@ def test_interval_evaluation_parallel_and_exact_replay(tmp_path):
     args=(pred,tmp_path/'infos.pkl',tmp_path)
     a=evaluate(*args,tmp_path/'serial15',cfg,visualize=0,workers=1,sample_interval=1.5)
     b=evaluate(*args,tmp_path/'parallel15',cfg,visualize=0,workers=2,sample_interval=1.5)
-    assert a['valid']==b['valid']==2 and a['invalid']==b['invalid']==2
+    assert a['valid']==b['valid']==2 and a['invalid']==b['invalid']==1
     one=json.loads((tmp_path/'serial15/sample_scores.json').read_text())
     two=json.loads((tmp_path/'parallel15/sample_scores.json').read_text())
     assert one==two

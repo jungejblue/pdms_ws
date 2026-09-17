@@ -85,12 +85,17 @@ def evaluate(pred_path,infos,root,out,cfg,limit=None,tokens=None,visualize=20,wo
     dataset=backend(root,infos,cfg)
     write_json(out/'input_manifest.json', {'planning':planning_report,'infos':dataset.input_report})
     requested=tokens if tokens is not None else list(plans)
+    from .coverage import select_coverage
+    requested,coverage=select_coverage(requested,dataset)
+    write_json(out/'excluded_samples.json',coverage)
+    print(f"Time coverage: {coverage['excluded_count']} excluded / {coverage['input_count']} input samples",flush=True)
     from .sampling import select_interval
     requested,selection=select_interval(requested,dataset,sample_interval)
     if limit is not None: requested=requested[:limit]
+    selection['time_coverage']=coverage
     selection['evaluated_tokens']=list(requested)
     write_json(out/'selection.json',selection)
-    if not requested: raise ValueError('No prediction tokens selected')
+    if not requested: raise ValueError('No time-eligible prediction tokens selected; see excluded_samples.json and selection.json')
     if len(set(requested))!=len(requested): raise ValueError('Duplicate tokens in evaluation selection')
     (out/'evaluated_tokens.txt').write_text('\n'.join(map(str,requested))+'\n')
     rows=[];started=time.time()
@@ -99,6 +104,9 @@ def evaluate(pred_path,infos,root,out,cfg,limit=None,tokens=None,visualize=20,wo
     rows,effective_workers=run_scenes(dataset,plans,requested,out,cfg,workers)
     valid=[r for r in rows if r['valid']];frame=pd.DataFrame(rows);frame.to_csv(out/'scores.csv',index=False)
     summary={'dataset':cfg.dataset,'metric':cfg.dataset.upper()+'-PDMS-GT-MPC-v0.1','package_version':__version__,'config_hash':cfg.hash(),'requested':len(rows),'valid':len(valid),'invalid':len(rows)-len(valid),
+             'input_samples':coverage['input_count'],'time_excluded':coverage['excluded_count'],
+             'time_eligible':coverage['eligible_count'],'coverage_policy':coverage['policy'],
+             'complete_scope':'selected time-eligible samples only; not the entire recording',
              'workers_requested':workers,'workers_effective':effective_workers,
              'ep_normalization':'gt_rollout_capped_ratio','ep_reference':cfg.ep_reference,'sample_interval_s':sample_interval,
              'initial_speed_policy':'backward_0.1s_else_scene_start_forward_0.1s',

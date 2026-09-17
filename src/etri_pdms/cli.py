@@ -68,7 +68,7 @@ def main():
     evaluate.add_argument('--data-root',default=None,help='Original ETRI parquet or nuScenes metadata root')
     evaluate.add_argument('--out',required=True);evaluate.add_argument('--config',default=str(workspace_root()/'configs'/'ioniq5_2023.yaml'))
     evaluate.add_argument('--limit',type=int)
-    evaluate.add_argument('--sample-interval',type=float,default=1.5,help='Seconds between scene samples; 0 evaluates all. Default 1.5')
+    evaluate.add_argument('--sample-interval',type=float,default=0.0,help='Seconds between scene samples; default 0 evaluates all time-eligible samples')
     evaluate.add_argument('--ep-reference',choices=['gt_path','centerline'],default=None)
     evaluate.add_argument('--workers',type=int,choices=range(1,5),default=1,help='CPU processes, 1..4; scene-parallel')
     evaluate.add_argument('--tokens',help='One exact sample token per line; use the same list for all models')

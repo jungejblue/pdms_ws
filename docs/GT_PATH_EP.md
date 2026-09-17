@@ -15,7 +15,7 @@
 
 ## 샘플 선택
 
-CLI 기본 `--sample-interval 1.5`. scene별 timestamp 정렬 후 첫 공통 sample, 이후 마지막 선택에서 1.5초 이상 떨어진 첫 sample을 선택합니다. 누락 token은 별도 invalid 대상으로 남깁니다. 실패했다고 다른 sample로 대체하지 않습니다. scene ID 정렬이 적용되므로 기존 PKL 순서의 첫 10개와 새 첫 10개는 다를 수 있습니다.
+CLI 기본 `--sample-interval 0`: 시간 조건을 충족하는 모든 sample을 입력 순서대로 평가합니다. 명시적으로 1.5를 지정하면 scene별 간격 선택을 사용할 수 있습니다. 시간 부족 제외 후 간격 선택, 그 뒤 limit을 적용합니다.
 
 `selection.json`은 간격 적용 후 목록/시각, 제외 개수, limit 후 실제 token 목록을 저장합니다. `evaluated_tokens.txt`는 실제 평가 목록입니다. Python evaluate API는 호환성을 위해 sample_interval=0 기본값을 유지합니다.
 

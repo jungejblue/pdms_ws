@@ -57,11 +57,12 @@ def test_parallel_equals_serial_with_start_and_invalid(tmp_path):
     a=evaluate(pred,tmp_path/'infos.pkl',tmp_path,tmp_path/'serial',cfg,visualize=0,workers=1)
     b=evaluate(pred,tmp_path/'infos.pkl',tmp_path,tmp_path/'parallel',cfg,visualize=0,workers=2)
     assert a['valid']==b['valid']==4
-    assert a['invalid']==b['invalid']==2
+    assert a['invalid']==b['invalid']==1
+    assert a['time_excluded']==b['time_excluded']==1
     assert b['workers_effective']==2 and b['forward_initial_speed_count']==2
     left=json.loads((tmp_path/'serial/sample_scores.json').read_text())
     right=json.loads((tmp_path/'parallel/sample_scores.json').read_text())
-    assert [r['token'] for r in right]==keys
+    assert [r['token'] for r in right]==[k for k in keys if k!='s14']
     assert left==right
     for row in left:
         if not row['valid']:continue
