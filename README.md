@@ -1,3 +1,7 @@
+# 끝점 처리 및 뷰어 시간 간격
+
+GT 기준이 정상인 모델 끝점 초과는 평가를 유지합니다. `pdms serve --run nuscenes_endpoint_all --period 1.5`로 scene별 표시 sample 간격을 선택할 수 있습니다. 저진행 EP 계산은 유지합니다. [명령어 및 기존 결과 호환성](docs/ENDPOINT_VIEWER.md)을 참고하세요.
+
 # 전체 sample 및 시간 조건 사전 선택
 
 기본 평가 간격은 0입니다. raw GT 3초·객체 관측 3.9초가 부족한 sample은 실행 전 제외하고 `excluded_samples.json`에 남깁니다. [정책 및 명령어](docs/TIME_COVERAGE.md)를 참고하세요.

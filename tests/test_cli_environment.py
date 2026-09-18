@@ -35,10 +35,10 @@ def test_serve_defaults_and_docker(tmp_path, monkeypatch):
     monkeypatch.setenv('PDMS_WS_ROOT',str(tmp_path))
     monkeypatch.delenv('PDMS_HOST',raising=False)
     seen=[]
-    monkeypatch.setattr(viewer,'serve',lambda *a: seen.append(a) or 0)
+    monkeypatch.setattr(viewer,'serve',lambda *a,period=0.: seen.append((*a,period)) or 0)
     monkeypatch.setattr(sys,'argv',['pdms','serve','--run','test'])
     cli.main()
-    assert seen[-1]==(str(tmp_path/'runs/test'),'127.0.0.1',7200)
+    assert seen[-1]==(str(tmp_path/'runs/test'),'127.0.0.1',7200,0.)
     monkeypatch.setenv('PDMS_HOST','0.0.0.0');cli.main()
     assert seen[-1][1]=='0.0.0.0'
 

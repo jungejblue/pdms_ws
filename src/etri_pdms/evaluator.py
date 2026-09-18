@@ -17,6 +17,17 @@ def write_json(path,data):
     temp.replace(path)
 
 
+def validate_endpoints(gt_score,model_score,ep_reference):
+    """GT-path model saturation is valid; an uncertain denominator is not."""
+    if ep_reference=='gt_path':
+        if gt_score['route_endpoint_clipped']:
+            raise ValueError('EP GT baseline uncertain: GT rollout exceeds recorded reference endpoint')
+        # score_pair already caps the FINAL projected progress ratio at one.
+        # A model that returns after an overshoot keeps its final ratio.
+    elif gt_score['route_endpoint_clipped'] or model_score['route_endpoint_clipped']:
+        raise ValueError('EP route too short; extend the intended centerline branch')
+
+
 def evaluate_sample(token,plans,dataset,out,cfg):
     row={'token':str(token),'valid':False,'invalid_reason':'','artifact_id':hashlib.sha256(str(token).encode()).hexdigest()[:20]}
     row.update({key:None for key in METRICS})
@@ -26,6 +37,7 @@ def evaluate_sample(token,plans,dataset,out,cfg):
         if token not in plans: raise ValueError('requested token missing in planning PKL')
         if token not in dataset.infos: raise ValueError('prediction token has no match in dataset metadata')
         sample=dataset.sample(token);row['scenario']=sample['scenario'];row['map_quality']=sample['map_quality'];row['route_source']=sample['route_source']
+        row['sample_start_time_s']=float(sample['t0'])
         row.update(sample['initial_speed_info'])
         row['ep_reference']=cfg.ep_reference
         row['ep_normalization']='gt_rollout_capped_ratio'
@@ -46,8 +58,9 @@ def evaluate_sample(token,plans,dataset,out,cfg):
         row['evaluation_stage']='metrics'
         gt_score,model_score=score_pair(gt_roll,model_roll,sample,cfg)
         write_json(folder/'diagnostics.json',{'model':model_score,'gt':gt_score,'model_solver':model_roll['solver_status'],'gt_solver':gt_roll['solver_status']})
-        if gt_score['route_endpoint_clipped'] or model_score['route_endpoint_clipped']:
-            raise ValueError('EP reference endpoint reached: insufficient recorded GT continuation' if cfg.ep_reference=='gt_path' else 'EP route too short; extend the intended centerline branch')
+        row['gt_endpoint_exceeded']=bool(gt_score['route_endpoint_clipped'])
+        row['model_endpoint_exceeded']=bool(model_score['route_endpoint_clipped'])
+        validate_endpoints(gt_score,model_score,cfg.ep_reference)
         row.update({k:model_score[k] for k in METRICS});row.update({'gt_'+k:gt_score[k] for k in METRICS})
         row.update(valid=True,command_index=mode,route_ids=sample['route_ids'],reference_failure=bool(gt_score['NC']*gt_score['DAC']==0),
                    reference_progress_m=gt_score['progress_m'],model_progress_m=model_score['progress_m'],

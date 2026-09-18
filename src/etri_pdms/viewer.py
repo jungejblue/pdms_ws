@@ -32,6 +32,35 @@ def discover_samples(run):
     return sorted(records, key=lambda r: (not r.get('valid', False), r.get('PDMS') if r.get('PDMS') is not None else 2, str(r.get('token', ''))))
 
 
+def select_viewer_period(records,period):
+    """Filter saved, viewable samples by actual start time without rescoring."""
+    if not np.isfinite(period) or period<0:
+        raise ValueError('period must be finite and nonnegative')
+    if period==0:return records
+    groups={}
+    for record in records:
+        if not record.get('valid',False):continue
+        folder=record['_folder']
+        if not all((folder/name).is_file() for name in ('scene.json','trajectories.npz')):
+            continue
+        timestamp=record.get('sample_start_time_s')
+        if isinstance(timestamp,bool) or not isinstance(timestamp,(float,int)) or not np.isfinite(timestamp):
+            raise ValueError('Saved sample timestamps missing/invalid; re-evaluate with this update or use --period 0. Token: '+str(record.get('token')))
+        scene=record.get('scenario')
+        if not isinstance(scene,str) or not scene:
+            raise ValueError('Saved sample scenario missing; re-evaluate or use --period 0')
+        groups.setdefault(scene,[]).append(record)
+    selected=[]
+    for scene in sorted(groups):
+        previous=None
+        for record in sorted(groups[scene],key=lambda r:(r['sample_start_time_s'],str(r['token']))):
+            timestamp=record['sample_start_time_s']
+            if previous is None or timestamp-previous>=period-1e-6:
+                selected.append(record);previous=timestamp
+    if not selected:raise ValueError('No viewable samples for --period selection')
+    return selected
+
+
 def polyline_segments(xy, z=0.04, dashed=False):
     xy = np.asarray(xy, dtype=np.float32)
     if len(xy) < 2:
@@ -344,12 +373,15 @@ class PDMSViewer:
             return True
 
 
-def serve(run, host='127.0.0.1', port=7200):
+def serve(run, host='127.0.0.1', port=7200, period=0.):
     try:
         import viser
     except ImportError as exc:
         raise RuntimeError('Install viewer dependencies: python -m pip install -e ".[viewer]"') from exc
     records=discover_samples(run)
+    total=len(records)
+    records=select_viewer_period(records,period)
+    print(f'Viewer selection: {len(records)}/{total} samples; period={period:g}s',flush=True)
     if not 1<=port<=65535:raise ValueError('port must be in 1..65535')
     # Viser may otherwise select another port automatically; make CLI port explicit.
     with socket.socket(socket.AF_INET,socket.SOCK_STREAM) as check:
@@ -377,7 +409,8 @@ def main():
     parser.add_argument('--run',required=True)
     parser.add_argument('--host',default='127.0.0.1')
     parser.add_argument('--port',type=int,default=7200)
+    parser.add_argument('--period',type=float,default=0.)
     args=parser.parse_args()
-    return serve(args.run,args.host,args.port)
+    return serve(args.run,args.host,args.port,period=args.period)
 
 if __name__=='__main__':raise SystemExit(main())

@@ -78,6 +78,7 @@ def main():
     demo.add_argument('--visualize',type=int,default=0)
     viewer=commands.add_parser('serve',help='Browse saved evaluation data at localhost using Viser')
     viewer.add_argument('--run',required=True);viewer.add_argument('--host',default=os.environ.get('PDMS_HOST','127.0.0.1'));viewer.add_argument('--port',type=int,default=7200)
+    viewer.add_argument('--period',type=float,default=0.,help='Minimum seconds between displayed samples within each scene; 0 shows all')
     visual=commands.add_parser('visualize',help='Export one sample to static HTML/PNG')
     visual.add_argument('--sample-dir',required=True)
     map_cmd=commands.add_parser('map-template',help='Export an unverified map polygon template for review')
@@ -113,7 +114,7 @@ def dispatch(args,parser):
     prepare_args(args,parser)
     if args.action=='serve':
         from .viewer import serve
-        return serve(args.run,args.host,args.port)
+        return serve(args.run,args.host,args.port,period=args.period)
     if args.action=='visualize':
         from .visualization import render_sample,render_png
         render_sample(args.sample_dir);render_png(args.sample_dir);return 0
