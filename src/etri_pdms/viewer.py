@@ -7,8 +7,10 @@ import threading
 import time
 
 import numpy as np
+from shapely import constrained_delaunay_triangles
+from shapely.errors import GEOSException
 from shapely.geometry import shape
-from shapely.ops import triangulate
+from shapely.ops import unary_union
 
 from .config import Vehicle
 from .geometry import ego_box
@@ -91,18 +93,75 @@ def polygon_segments(geometry, z=0.01):
 
 
 def polygon_mesh(geometry):
-    """Keep polygon holes; reject Delaunay triangles outside the drivable union."""
-    polys = list(geometry.geoms) if hasattr(geometry, 'geoms') else [geometry]
-    triangles = []
-    for poly in polys:
-        if poly.is_empty or poly.geom_type != 'Polygon':
-            continue
-        triangles.extend(np.asarray(t.exterior.coords)[:3, :2] for t in triangulate(poly) if poly.covers(t))
-    if not triangles:
+    """Preserve polygon boundaries and holes when building the road mesh."""
+    if geometry.is_empty:
         return None
-    xy = np.asarray(triangles, np.float32).reshape(-1, 2)
-    vertices = np.column_stack([xy, np.zeros(len(xy), np.float32)])
-    return vertices, np.arange(len(vertices), dtype=np.uint32).reshape(-1, 3)
+
+    if geometry.geom_type not in ("Polygon", "MultiPolygon"):
+        raise ValueError(
+            f"Expected Polygon/MultiPolygon, got {geometry.geom_type}"
+        )
+
+    if not geometry.is_valid:
+        raise ValueError("Invalid drivable polygon; mesh was not generated")
+
+    parts = (
+        list(geometry.geoms)
+        if geometry.geom_type == "MultiPolygon"
+        else [geometry]
+    )
+    area = unary_union(parts)
+
+    # Triangulate while preserving the outer boundary and interior holes.
+    triangles = list(constrained_delaunay_triangles(area).geoms)
+    if not triangles:
+        raise ValueError("Triangulation produced no road surface")
+
+    # Verify missing, excess, and overlapping areas separately.
+    mesh_area = unary_union(triangles)
+    missing = area.difference(mesh_area).area
+    excess = mesh_area.difference(area).area
+    overlap = max(
+        0.0,
+        sum(triangle.area for triangle in triangles) - mesh_area.area,
+    )
+    tolerance = max(1e-8, area.area * 1e-9)
+
+    if max(missing, excess, overlap) > tolerance:
+        raise ValueError(
+            "Road mesh coverage mismatch: "
+            f"missing={missing:.9g} m², "
+            f"excess={excess:.9g} m², "
+            f"overlap={overlap:.9g} m²"
+        )
+
+    xy = np.asarray(
+        [
+            np.asarray(triangle.exterior.coords)[:3, :2]
+            for triangle in triangles
+        ],
+        dtype=np.float64,
+    )
+
+    # Orient all triangles toward +Z.
+    edge_a = xy[:, 1] - xy[:, 0]
+    edge_b = xy[:, 2] - xy[:, 0]
+    cross = (
+        edge_a[:, 0] * edge_b[:, 1]
+        - edge_a[:, 1] * edge_b[:, 0]
+    )
+    reverse = cross < 0
+    xy[reverse] = xy[reverse][:, [0, 2, 1], :]
+
+    xy = xy.reshape(-1, 2).astype(np.float32)
+    vertices = np.column_stack(
+        [xy, np.zeros(len(xy), dtype=np.float32)]
+    )
+    faces = np.arange(
+        len(vertices), dtype=np.uint32
+    ).reshape(-1, 3)
+
+    return vertices, faces
 
 
 def load_sample(record):
@@ -232,12 +291,37 @@ class PDMSViewer:
                 arrays = data['arrays']
                 self.frame.max = len(arrays['pred_rollout'])-1
                 area = shape(data['scene']['drivable'])
-                mesh = polygon_mesh(area)
+                mesh_warning = None
+
+                try:
+                    mesh = polygon_mesh(area)
+                except (ValueError, GEOSException) as exc:
+                    mesh = None
+                    mesh_warning = f"Road surface unavailable: {exc}"
+
                 area_handles = []
-                if mesh:
-                    handle = self.server.scene.add_mesh_simple('/pdms/drivable_fill', vertices=mesh[0], faces=mesh[1], color=COLORS['drivable'], opacity=.18, side='double')
-                    self.handles.append(handle); area_handles.append(handle)
-                area_handles.append(self._line('drivable_edge',polygon_segments(area),COLORS['drivable'],1.0))
+
+                if mesh is not None:
+                    handle = self.server.scene.add_mesh_simple(
+                        '/pdms/drivable_fill',
+                        vertices=mesh[0],
+                        faces=mesh[1],
+                        color=(224, 235, 228),
+                        opacity=1.0,
+                        wireframe=False,
+                        side='double',
+                    )
+                    self.handles.append(handle)
+                    area_handles.append(handle)
+
+                area_handles.append(
+                    self._line(
+                        'drivable_edge',
+                        polygon_segments(area),
+                        COLORS['drivable'],
+                        1.0,
+                    )
+                )
                 self.static_handles['drivable'] = area_handles
                 route = shape(data['scene']['route'])
                 self.static_handles['route'] = [self._line('route',polyline_segments(route.coords,.025,True),COLORS['route'],2.0)]
@@ -248,6 +332,10 @@ class PDMSViewer:
                 handle = self.server.scene.add_point_cloud('/pdms/waypoints',points=points.astype(np.float32),colors=COLORS['pred'],point_size=.16)
                 self.handles.append(handle); self.static_handles['waypoints']=[handle]
                 self.status.content = self._diagnostic_text(data)
+                if mesh_warning:
+                    self.status.content += (
+                        f"\n\n**Map rendering warning:** {mesh_warning}"
+                    )
                 self._update_charts(data)
                 self.update_frame()
                 self.apply_visibility()
