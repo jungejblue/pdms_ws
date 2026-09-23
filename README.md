@@ -1,46 +1,3 @@
-# 끝점 처리 및 뷰어 시간 간격
-
-GT 기준이 정상인 모델 끝점 초과는 평가를 유지합니다. `pdms serve --run nuscenes_endpoint_all --period 1.5`로 scene별 표시 sample 간격을 선택할 수 있습니다. 저진행 EP 계산은 유지합니다. [명령어 및 기존 결과 호환성](docs/ENDPOINT_VIEWER.md)을 참고하세요.
-
-# 전체 sample 및 시간 조건 사전 선택
-
-기본 평가 간격은 0입니다. raw GT 3초·객체 관측 3.9초가 부족한 sample은 실행 전 제외하고 `excluded_samples.json`에 남깁니다. [정책 및 명령어](docs/TIME_COVERAGE.md)를 참고하세요.
-
-> EP 정규화 업데이트: GT MPC rollout 진행 거리를 고정 분모로 사용합니다. GT EP=1, 모델 EP=clip(d_model/d_gt,0,1). NC/DAC는 EP 안에서 곱하지 않고 종합 PDMS에 반영합니다. 세부 정지 규칙과 DAC 진단은 [GT_BASELINE_EP.md](docs/GT_BASELINE_EP.md)를 참고하세요.
-
-# GT 경로 EP 및 전체 sample 평가
-
-기본 EP 기준선은 `gt_path`입니다. 실제 GT의 차량 중심 경로에 모델/GT rollout을 모두 투영합니다.
-지도는 NC/DAC/TTC 평가에 계속 사용합니다. 기존 centerline 방식과 점수가 달라질 수 있습니다.
-
-```bash
-source pdms/bin/activate
-source scripts/setup_pdms_docker_env.sh nuscenes v1.0-trainval
-pdms evaluate --out nuscenes_gt_check --limit 10 --workers 1
-pdms serve --run nuscenes_gt_check
-# http://localhost:7200, 종료 Ctrl+C
-pdms evaluate --out nuscenes_gt_full --workers 4
-pdms serve --run nuscenes_gt_full
-```
-
-기본값은 `--sample-interval 0`: 시간 조건을 충족하는 모든 prediction sample을 평가합니다.
-시간 부족 sample 제외 → 선택적 간격 적용 → `--limit` 순서입니다.
-`--tokens` 목록도 시간 조건 검사를 거칩니다. 제외 token은 `excluded_samples.json`에 기록됩니다.
-새 실행은 새 출력 디렉터리를 사용하세요. worker 허용값은 기존과 동일하게 1~4입니다.
-
-```bash
-# 기존 centerline 방식과 동일 token으로 비교
-pdms evaluate --out nuscenes_centerline_check --ep-reference centerline \
-  --tokens runs/nuscenes_gt_check/evaluated_tokens.txt --sample-interval 0 --workers 1
-```
-
-평가 길이는 3초, GT 투영 경로는 이용 가능한 실제 기록을 최대 10초까지 사용합니다.
-정지 GT만 있고 모델이 이동하거나, 기준선 끝을 넘어가거나, 투영 분기가 모호하면 invalid입니다.
-자세한 정책은 [docs/GT_PATH_EP.md](docs/GT_PATH_EP.md)를 참고하세요.
-아래 기존 사용법의 `evaluate`에도 새 기본값이 적용됩니다.
-
----
-
 # pdms_ws
 
 ETRI 원본 parquet, infos PKL, planning prediction PKL을 이용해 MPC-CLF 추종과
@@ -63,7 +20,7 @@ pdms serve --run nuscenes_check
 # http://localhost:7200
 ```
 
-nuScenes는 기본 IONIQ 5 가상 차량으로 평가합니다. 캐시 rear-axle 좌표를 검증해 사용하지만 실제 nuScenes 차량 치수와 일치하는 것은 아닙니다.
+본 Repo는 기본 IONIQ 5 Bicycle Model 기준으로 평가합니다. 캐시 rear-axle 좌표를 검증해 사용하지만 실제 nuScenes 차량 치수와 일치하는 것은 아닙니다.
 공식 nuScenes/NAVSIM 벤치마크 점수도 아닙니다.
 아래 ETRI 명령은 그대로 사용할 수 있습니다.
 
