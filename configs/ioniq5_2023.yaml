@@ -21,19 +21,19 @@ vehicle:
   max_steer_deg: 40.0
   min_turning_radius_metadata: 5.87
 controller:
-  horizon: 15
+  horizon: 20
   a_min: -4.0
   a_max: 2.0
   v_max: 40.0
-  steer_rate_deg: 30.0
+  steer_rate_deg: 60.0
   q_s: 2.0
-  q_d: 5.0
-  q_yaw: 3.0
+  q_d: 3.0
+  q_yaw: 5.0
   q_v: 2.0
-  r_steer: 0.1
+  r_steer: 0.05
   r_accel: 0.1
   clf_d: 0.5
   clf_yaw: 0.5
-  clf_rate: 0.5
+  clf_rate: 0.7
   clf_slack_weight: 1000.0
   max_iter: 150
