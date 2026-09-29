@@ -23,6 +23,22 @@ def digest(path):
         for chunk in iter(lambda: stream.read(1024*1024), b''): h.update(chunk)
     return h.hexdigest()
 
+def is_unified_prediction(content):
+    return (isinstance(content,(list,tuple)) and bool(content)
+            and isinstance(content[0],dict) and 'pts_bbox' in content[0])
+
+def unified_planning_items(content,file):
+    from .prediction import array
+    fields=('ego_fut_preds','plan_cls_preds','ego_fut_cmd')
+    for index,record in enumerate(content):
+        if not isinstance(record,dict) or 'token' not in record or not isinstance(record.get('pts_bbox'),dict):
+            raise ValueError(f'{file}: record {index} requires token and pts_bbox dictionary')
+        bbox=record['pts_bbox']
+        missing=[key for key in fields if key not in bbox]
+        if missing: raise ValueError(f'{file}: record {index} missing planning fields: {missing}')
+        # Retain only the inputs consumed by PDMS, releasing predicted boxes/agents/maps.
+        yield str(record['token']),{key:array(bbox[key]) for key in fields}
+
 
 def load_collection(source, kind):
     from .prediction import load_pickle
@@ -37,16 +53,22 @@ def load_collection(source, kind):
         except Exception as exc:
             raise ValueError(f'Cannot read PKL {file}: {type(exc).__name__}: {exc}') from exc
         if kind == 'planning':
-            recognized = isinstance(content, dict) and 'plan_results' in content
-            entries = content.get('plan_results') if recognized else None
-            if recognized and not isinstance(entries, dict):
-                raise ValueError(f'{file}: plan_results must be a dictionary')
-            items = entries.items() if recognized else ()
+            if isinstance(content,dict) and 'plan_results' in content:
+                recognized=True
+                entries=content['plan_results']
+                if not isinstance(entries,dict): raise ValueError(f'{file}: plan_results must be a dictionary')
+                items=entries.items()
+            elif is_unified_prediction(content):
+                recognized=True
+                items=unified_planning_items(content,file)
+            else:
+                recognized=False
+                items=()
         else:
             recognized = isinstance(content, dict) and 'infos' in content
             entries = content.get('infos') if recognized else content
             if not recognized:
-                recognized = isinstance(entries, (list, tuple)) and bool(entries) and all(isinstance(i, dict) and 'token' in i and 'timestamp' in i for i in entries)
+                recognized = not is_unified_prediction(content) and isinstance(entries, (list, tuple)) and bool(entries) and all(isinstance(i, dict) and 'token' in i and 'timestamp' in i for i in entries)
             if recognized and not isinstance(entries, (list, tuple)):
                 raise ValueError(f'{file}: infos must be a list')
             items = []

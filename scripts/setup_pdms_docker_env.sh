@@ -12,7 +12,7 @@ export PDMS_WS_ROOT="$(cd -- "${_PDMS_SCRIPT_DIR}/.." && pwd)"
 export DATASET_ROOT="/data"
 export ETRI_DATA_ROOT="${DATASET_ROOT}/etri"
 export ETRI_CACHE_PATH="${ETRI_DATA_ROOT}/cache"
-export ETRI_PREDICTION_CACHE="${ETRI_DATA_ROOT}/result/stage2"
+export ETRI_PREDICTION_CACHE="${ETRI_DATA_ROOT}/result"
 
 # Edit directories only. All matching top-level PKLs are discovered by schema.
 export PDMS_DATA_ROOT="${ETRI_DATA_ROOT}/val"
@@ -25,7 +25,7 @@ fi
 export NUSCENES_VERSION="${2:-v1.0-mini}"
 export NUSCENES_DATA_ROOT="${DATASET_ROOT}/nuscenes/${NUSCENES_VERSION}"
 export NUSCENES_CACHE_PATH="${NUSCENES_DATA_ROOT}/cache"
-export NUSCENES_PREDICTION_CACHE="${NUSCENES_DATA_ROOT}/result/stage2"
+export NUSCENES_PREDICTION_CACHE="${NUSCENES_DATA_ROOT}/result"
 export NUSCENES_PREDICTION_FRAME="cache"
 export NUSCENES_MAP_ROOT="${NUSCENES_DATA_ROOT}"
 if [[ "$PDMS_DATASET" == "nuscenes" ]]; then

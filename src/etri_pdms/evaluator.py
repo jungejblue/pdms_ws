@@ -42,7 +42,8 @@ def evaluate_sample(token,plans,dataset,out,cfg):
         row['ep_reference']=cfg.ep_reference
         row['ep_normalization']='gt_rollout_capped_ratio'
         row['ep_path_info']=sample.get('ep_path_info',{})
-        pred,mode=select_prediction(plans[token],cfg)
+        pred,mode,selection_metadata=select_prediction(plans[token],cfg,return_metadata=True)
+        row.update(selection_metadata)
         row['dataset']=cfg.dataset
         if cfg.dataset=='nuscenes':
             pred=dataset.transform_prediction(pred,sample)

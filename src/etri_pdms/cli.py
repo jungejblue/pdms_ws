@@ -122,13 +122,22 @@ def dispatch(args,parser):
         from .map_template import export
         export(args.hd_map,args.out,args.lane_width);return 0
     if args.action=='inspect':
-        cfg=evaluation_config(args);plans,planning_report=load_plans(args.pred,return_report=True);errors=[];modes=[0,0,0]
+        cfg=evaluation_config(args);plans,planning_report=load_plans(args.pred,return_report=True);errors=[];modes=[0]*6
+        candidate_counts={};selection_examples=[];has_unified=False
         for token,entry in plans.items():
-            try:_,mode=select_prediction(entry,cfg);modes[mode]+=1
-            except (ValueError,TypeError) as exc:errors.append({'token':token,'error':str(exc)})
-        result={'tokens':len(plans),'valid_entries':sum(modes),'command_counts':modes,'errors':errors[:20],
+            try:
+                _,mode,metadata=select_prediction(entry,cfg,return_metadata=True)
+                modes[mode]+=1
+                has_unified |= metadata['planning_format']=='unified'
+                candidate=f"{metadata['planning_format']}:{metadata['selected_candidate_index']}"
+                candidate_counts[candidate]=candidate_counts.get(candidate,0)+1
+                if len(selection_examples)<5: selection_examples.append({'token':token,'command_index':mode,**metadata})
+            except (ValueError,TypeError,KeyError) as exc:errors.append({'token':token,'error':str(exc)})
+        result={'tokens':len(plans),'valid_entries':sum(modes),'command_counts':modes if has_unified else modes[:3],'errors':errors[:20],
                 'representation':cfg.representation,'axes':cfg.axes,'first_tokens':list(plans)[:3],
                 'planning_inputs':{k:v for k,v in planning_report.items() if k != 'token_sources'}}
+        result['candidate_counts']=candidate_counts
+        result['selection_examples']=selection_examples
         if args.dataset=='nuscenes':
             from .nuscenes_data import NuScenesDataset
             dataset=NuScenesDataset(args.data_root,args.raw,cfg)
